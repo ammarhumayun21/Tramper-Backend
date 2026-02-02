@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info:
+  title: Tramper API
+  version: 1.0.0
+  description: API for Tramper platform. Fully internationalized
+    with support for English and Arabic.
+paths: {}
+components: {}
+tags:
+  - name: Authentication
+    description: User authentication and registration
