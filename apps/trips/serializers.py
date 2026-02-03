@@ -1,0 +1,132 @@
+"""
+Trip serializers for Tramper.
+"""
+
+from datetime import datetime
+from rest_framework import serializers
+from django.utils.translation import gettext_lazy as _
+from .models import Trip, TripCapacity
+
+
+class TripCapacitySerializer(serializers.ModelSerializer):
+    """Serializer for trip capacity."""
+
+    available_weight = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+    is_full = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = TripCapacity
+        fields = [
+            "id",
+            "total_weight",
+            "used_weight",
+            "available_weight",
+            "is_full",
+            "unit",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class TripSerializer(serializers.ModelSerializer):
+    """Serializer for trip data."""
+
+    capacity = TripCapacitySerializer()
+    traveler_id = serializers.UUIDField(source="traveler.id", read_only=True)
+
+    class Meta:
+        model = Trip
+        fields = [
+            "id",
+            "traveler_id",
+            "first_name",
+            "last_name",
+            "mode",
+            "status",
+            "from_location",
+            "to_location",
+            "departure_date",
+            "departure_time",
+            "capacity",
+            "transport_details",
+            "category",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "traveler_id", "created_at", "updated_at"]
+
+    def validate_departure_time(self, value):
+        """Handle both time and datetime strings for departure_time."""
+        if isinstance(value, str):
+            # Handle formats like "07:16:46.128Z" or "07:16:46Z"
+            # Strip timezone indicator and milliseconds
+            time_str = value.replace('Z', '').split('.')[0]
+            try:
+                # Parse the time string (HH:MM:SS)
+                time_parts = time_str.split(':')
+                if len(time_parts) >= 2:
+                    hour = int(time_parts[0])
+                    minute = int(time_parts[1])
+                    second = int(time_parts[2]) if len(time_parts) > 2 else 0
+                    from datetime import time
+                    return time(hour=hour, minute=minute, second=second)
+            except (ValueError, IndexError):
+                # If parsing fails, let DRF handle the error
+                pass
+        return value
+
+    def create(self, validated_data):
+        """Create trip with capacity."""
+        capacity_data = validated_data.pop("capacity")
+        capacity = TripCapacity.objects.create(**capacity_data)
+        trip = Trip.objects.create(capacity=capacity, **validated_data)
+        return trip
+
+    def update(self, instance, validated_data):
+        """Update trip and capacity."""
+        capacity_data = validated_data.pop("capacity", None)
+        
+        if capacity_data:
+            # Update capacity
+            for attr, value in capacity_data.items():
+                setattr(instance.capacity, attr, value)
+            instance.capacity.save()
+        
+        # Update trip
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        return instance
+
+
+class TripListSerializer(serializers.ModelSerializer):
+    """Simplified serializer for trip listings."""
+
+    capacity = TripCapacitySerializer(read_only=True)
+    traveler_id = serializers.UUIDField(source="traveler.id", read_only=True)
+
+    class Meta:
+        model = Trip
+        fields = [
+            "id",
+            "traveler_id",
+            "first_name",
+            "last_name",
+            "mode",
+            "status",
+            "from_location",
+            "to_location",
+            "departure_date",
+            "departure_time",
+            "capacity",
+            "category",
+            "created_at",
+        ]
+        read_only_fields = fields
