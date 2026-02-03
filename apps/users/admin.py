@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import User, PasswordResetToken
+from .models import User, PasswordResetToken, UserSettings
 
 
 @admin.register(User)
@@ -112,3 +112,23 @@ class PasswordResetTokenAdmin(admin.ModelAdmin):
     list_filter = ["is_used", "created_at"]
     search_fields = ["user__email", "user__username"]
     readonly_fields = ["id", "token", "created_at"]
+
+
+@admin.register(UserSettings)
+class UserSettingsAdmin(admin.ModelAdmin):
+    """Admin for user settings."""
+
+    list_display = [
+        "user",
+        "matchmaking_notifications_enabled",
+        "chat_notifications_enabled",
+        "selected_language_code",
+        "created_at",
+    ]
+    list_filter = [
+        "matchmaking_notifications_enabled",
+        "chat_notifications_enabled",
+        "selected_language_code",
+    ]
+    search_fields = ["user__email", "user__username"]
+    readonly_fields = ["id", "created_at", "updated_at"]

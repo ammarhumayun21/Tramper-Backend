@@ -5,16 +5,18 @@ JWT-based authentication with drf-spectacular documentation.
 
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
+from .models import UserSettings
 from .serializers import (
     UserSerializer,
     UserRegistrationSerializer,
     UserLoginSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
+    UserSettingsSerializer,
 )
 from core.api import success_response
 from core.emails.welcome import send_welcome_email
@@ -120,3 +122,81 @@ class PasswordResetConfirmView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return success_response({"message": "Password has been reset successfully."})
+
+
+class CurrentUserView(APIView):
+    """Get current authenticated user."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Users"],
+        summary="Get current user",
+        description="Get the currently authenticated user's profile.",
+        responses={
+            200: OpenApiResponse(response=UserSerializer, description="Current user data."),
+            401: OpenApiResponse(description="Not authenticated."),
+        },
+    )
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return success_response(serializer.data)
+
+
+class CurrentUserSettingsView(APIView):
+    """Get and update current user settings."""
+    permission_classes = [IsAuthenticated]
+
+    def get_or_create_settings(self, user):
+        """Get or create settings for user."""
+        settings, _ = UserSettings.objects.get_or_create(user=user)
+        return settings
+
+    @extend_schema(
+        tags=["Users"],
+        summary="Get current user settings",
+        description="Get the currently authenticated user's settings.",
+        responses={
+            200: OpenApiResponse(response=UserSettingsSerializer, description="Current user settings."),
+            401: OpenApiResponse(description="Not authenticated."),
+        },
+    )
+    def get(self, request):
+        settings = self.get_or_create_settings(request.user)
+        serializer = UserSettingsSerializer(settings)
+        return success_response(serializer.data)
+
+    @extend_schema(
+        tags=["Users"],
+        summary="Update current user settings",
+        description="Update the currently authenticated user's settings.",
+        request=UserSettingsSerializer,
+        responses={
+            200: OpenApiResponse(response=UserSettingsSerializer, description="Updated user settings."),
+            400: OpenApiResponse(description="Validation error."),
+            401: OpenApiResponse(description="Not authenticated."),
+        },
+    )
+    def put(self, request):
+        settings = self.get_or_create_settings(request.user)
+        serializer = UserSettingsSerializer(settings, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(serializer.data)
+
+    @extend_schema(
+        tags=["Users"],
+        summary="Partially update current user settings",
+        description="Partially update the currently authenticated user's settings.",
+        request=UserSettingsSerializer,
+        responses={
+            200: OpenApiResponse(response=UserSettingsSerializer, description="Updated user settings."),
+            400: OpenApiResponse(description="Validation error."),
+            401: OpenApiResponse(description="Not authenticated."),
+        },
+    )
+    def patch(self, request):
+        settings = self.get_or_create_settings(request.user)
+        serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(serializer.data)

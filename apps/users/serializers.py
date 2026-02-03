@@ -12,7 +12,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import User, PasswordResetToken
+from .models import User, PasswordResetToken, UserSettings
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -268,3 +268,19 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         reset_token.save()
 
         return user
+
+
+class UserSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for user settings."""
+
+    class Meta:
+        model = UserSettings
+        fields = [
+            "id",
+            "matchmaking_notifications_enabled",
+            "chat_notifications_enabled",
+            "selected_language_code",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

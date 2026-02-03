@@ -17,38 +17,46 @@ from rest_framework.exceptions import (
 
 def _normalize_errors(detail):
     """
-    Normalize error details into a consistent format.
+    Normalize error details into a single error message string.
+    Returns only the first error encountered.
     Handles dict, list, and ErrorDetail objects from DRF and simplejwt.
     """
     if isinstance(detail, dict):
-        normalized = {}
-        for field, msgs in detail.items():
-            if isinstance(msgs, list):
-                # Take first error message from list
-                normalized[field] = str(msgs[0])
-            elif isinstance(msgs, dict):
-                # Handle nested dict (e.g., from simplejwt TokenError)
-                # Extract 'detail' or 'message' if present, otherwise use first value
-                if 'detail' in msgs:
-                    normalized[field] = str(msgs['detail'])
-                elif 'message' in msgs:
-                    normalized[field] = str(msgs['message'])
-                else:
-                    # Get first value from dict
-                    first_value = next(iter(msgs.values()), msgs)
-                    normalized[field] = str(first_value)
+        # Get the first field and its error message
+        first_field = next(iter(detail.keys()))
+        first_msgs = detail[first_field]
+        
+        if isinstance(first_msgs, list):
+            # Take first error message from list
+            msg = str(first_msgs[0])
+        elif isinstance(first_msgs, dict):
+            # Handle nested dict (e.g., from simplejwt TokenError)
+            if 'detail' in first_msgs:
+                msg = str(first_msgs['detail'])
+            elif 'message' in first_msgs:
+                msg = str(first_msgs['message'])
             else:
-                normalized[field] = str(msgs)
-        return normalized
+                first_value = next(iter(first_msgs.values()), first_msgs)
+                msg = str(first_value)
+        else:
+            msg = str(first_msgs)
+        
+        # Format as "field_name error message"
+        if first_field == 'non_field_errors' or first_field == 'detail':
+            return msg
+        else:
+            return f"{first_field} {msg.lower()}" if msg[0].isupper() else f"{first_field} {msg}"
+    
     if isinstance(detail, list):
-        return {"non_field_errors": str(detail[0])}
-    return {"non_field_errors": str(detail)}
+        return str(detail[0])
+    
+    return str(detail)
 
 
 def custom_exception_handler(exc, context):
     """
     Custom exception handler that ensures all API errors follow the standard format:
-    {"success": false, "errors": {"field": "message"}}
+    {"success": false, "error": "field_name error message. another_field error message."}
     """
     response = drf_exception_handler(exc, context)
 
@@ -59,24 +67,24 @@ def custom_exception_handler(exc, context):
             if isinstance(response.data, dict):
                 response.data = {
                     "success": False,
-                    "errors": _normalize_errors(response.data),
+                    "error": _normalize_errors(response.data),
                 }
             elif isinstance(response.data, list):
                 response.data = {
                     "success": False,
-                    "errors": {"non_field_errors": str(response.data[0])},
+                    "error": str(response.data[0]),
                 }
             else:
                 response.data = {
                     "success": False,
-                    "errors": {"non_field_errors": str(response.data)},
+                    "error": str(response.data),
                 }
         return response
 
     return Response(
         {
             "success": False,
-            "errors": {"non_field_errors": "Internal server error."},
+            "error": "Internal server error.",
         },
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )

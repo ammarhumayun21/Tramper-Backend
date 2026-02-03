@@ -215,3 +215,57 @@ class PasswordResetToken(models.Model):
 
     def __str__(self):
         return f"Reset token for {self.user.email}"
+
+
+class UserSettings(models.Model):
+    """
+    User settings model for Tramper.
+    Linked one-to-one with User model.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name=_("ID"),
+    )
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="settings",
+        verbose_name=_("user"),
+    )
+
+    matchmaking_notifications_enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("matchmaking notifications enabled"),
+    )
+
+    chat_notifications_enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("chat notifications enabled"),
+    )
+
+    selected_language_code = models.CharField(
+        max_length=10,
+        default="en",
+        verbose_name=_("selected language code"),
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("created at"),
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_("updated at"),
+    )
+
+    class Meta:
+        verbose_name = _("user settings")
+        verbose_name_plural = _("user settings")
+
+    def __str__(self):
+        return f"Settings for {self.user.email}"
