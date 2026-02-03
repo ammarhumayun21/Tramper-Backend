@@ -210,6 +210,10 @@ SPECTACULAR_SETTINGS = {
     # Schema generation
     "SCHEMA_PATH_PREFIX": r"/api",
     "COMPONENT_SPLIT_REQUEST": True,
+    # Use sidecar for serving Swagger UI and Redoc static files
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
     "SWAGGER_UI_SETTINGS": {
         "deepLinking": True,
         "persistAuthorization": True,
