@@ -13,7 +13,7 @@ SECURITY CHECKLIST:
 from .base import *  # noqa
 
 # Security - must be set in environment
-DEBUG = False
+DEBUG = config("DEBUG", default=False, cast=bool)
 SECRET_KEY = config("SECRET_KEY")
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
