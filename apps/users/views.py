@@ -176,24 +176,6 @@ class CurrentUserSettingsView(APIView):
             401: OpenApiResponse(description="Not authenticated."),
         },
     )
-    def put(self, request):
-        settings = self.get_or_create_settings(request.user)
-        serializer = UserSettingsSerializer(settings, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return success_response(serializer.data)
-
-    @extend_schema(
-        tags=["Users"],
-        summary="Partially update current user settings",
-        description="Partially update the currently authenticated user's settings.",
-        request=UserSettingsSerializer,
-        responses={
-            200: OpenApiResponse(response=UserSettingsSerializer, description="Updated user settings."),
-            400: OpenApiResponse(description="Validation error."),
-            401: OpenApiResponse(description="Not authenticated."),
-        },
-    )
     def patch(self, request):
         settings = self.get_or_create_settings(request.user)
         serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
