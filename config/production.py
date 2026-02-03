@@ -105,7 +105,7 @@ CACHES = {
     }
 }
 
-SESSION_ENGINE = "django_redis.cache.session.SessionCache"
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
 # API documentation access restriction
