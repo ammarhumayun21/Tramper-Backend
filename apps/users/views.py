@@ -5,14 +5,16 @@ JWT-based authentication with drf-spectacular documentation.
 
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.parsers import JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
-from .models import UserSettings
+from .models import User, UserSettings
 from .serializers import (
     UserSerializer,
+    UserListSerializer,
     UserRegistrationSerializer,
     UserLoginSerializer,
     PasswordResetRequestSerializer,
@@ -237,3 +239,25 @@ class CurrentUserSettingsView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return success_response(serializer.data)
+
+
+class AllUsersView(ListAPIView):
+    """
+    List all users (superuser only).
+    """
+    permission_classes = [IsAdminUser]
+    serializer_class = UserListSerializer
+    queryset = User.objects.all().order_by('-created_at')
+
+    @extend_schema(
+        tags=["Users"],
+        summary="List all users",
+        description="Get a list of all users. Only accessible by superusers.",
+        responses={
+            200: OpenApiResponse(response=UserListSerializer(many=True), description="List of all users."),
+            401: OpenApiResponse(description="Not authenticated."),
+            403: OpenApiResponse(description="Not authorized (superuser only)."),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)

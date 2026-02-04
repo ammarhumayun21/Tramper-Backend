@@ -13,6 +13,7 @@ from .views import (
     PasswordResetConfirmView,
     CurrentUserView,
     CurrentUserSettingsView,
+    AllUsersView,
 )
 
 # Wrap TokenRefreshView with proper schema
@@ -37,4 +38,5 @@ urlpatterns = [
     ),
     path("me/", CurrentUserView.as_view(), name="current_user"),
     path("me/settings/", CurrentUserSettingsView.as_view(), name="current_user_settings"),
+    path("users/", AllUsersView.as_view(), name="all_users"),
 ]

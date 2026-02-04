@@ -44,6 +44,7 @@ LOCAL_APPS = [
     "apps.users.apps.UsersConfig",
     "apps.trips.apps.TripsConfig",
     "apps.shipments.apps.ShipmentsConfig",
+    "apps.requests.apps.RequestsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -244,6 +245,8 @@ SPECTACULAR_SETTINGS = {
         {"name": "Trips", "description": "Trip management and listings"},
         {"name": "Shipments", "description": "Shipment requests and management"},
         {"name": "Shipment Items", "description": "Items within shipments"},
+        {"name": "Requests", "description": "Request negotiations between users"},
+        {"name": "Counter Offers", "description": "Counter offers in request negotiations"},
     ],
 }
 

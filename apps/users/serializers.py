@@ -15,6 +15,33 @@ from rest_framework import serializers
 from .models import User, PasswordResetToken, UserSettings
 
 
+class UserListSerializer(serializers.ModelSerializer):
+    """Serializer for listing users (admin view)."""
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "full_name",
+            "username",
+            "email",
+            "is_email_verified",
+            "phone",
+            "is_phone_verified",
+            "profile_image_url",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "rating",
+            "total_trips",
+            "total_deals",
+            "total_shipments",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for user profile data."""
 
