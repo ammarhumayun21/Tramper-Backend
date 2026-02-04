@@ -117,9 +117,10 @@ if "debug_toolbar" in INSTALLED_APPS:
 if "debug_toolbar.middleware.DebugToolbarMiddleware" in MIDDLEWARE:
     MIDDLEWARE.remove("debug_toolbar.middleware.DebugToolbarMiddleware")
 
-# Static files served by CDN/S3
+# Static files served by WhiteNoise
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Use S3 for media files if configured
 USE_S3 = config("USE_S3", default=False, cast=bool)
