@@ -3,6 +3,7 @@ Custom exception handling for REST API.
 Provides consistent error response format across the application.
 """
 
+import logging
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework import status
@@ -13,6 +14,8 @@ from rest_framework.exceptions import (
     PermissionDenied,
     NotFound,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_errors(detail):
@@ -81,6 +84,9 @@ def custom_exception_handler(exc, context):
                 }
         return response
 
+    # Log the full exception for debugging
+    logger.exception("Unhandled exception in API: %s", exc, exc_info=True)
+    
     return Response(
         {
             "success": False,
