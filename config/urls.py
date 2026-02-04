@@ -25,6 +25,8 @@ urlpatterns = [
     path("api/v1/shipments/", include("apps.shipments.urls")),
     # API v1 - Requests endpoints
     path("api/v1/requests/", include("apps.requests.urls")),
+    # API v1 - Notifications endpoints
+    path("api/v1/notifications/", include("apps.notifications.urls")),
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

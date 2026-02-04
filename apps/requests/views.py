@@ -22,6 +22,7 @@ from .serializers import (
 )
 from .permissions import IsRequestParticipant, IsSenderOrSuperuser
 from core.api import success_response
+from apps.notifications.services import notification_service
 
 
 class MyRequestsView(ListAPIView):
@@ -88,6 +89,10 @@ class RequestListCreateView(APIView):
         serializer = RequestCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         req = serializer.save(sender=request.user)
+        
+        # Send notification to receiver
+        notification_service.notify_request_created(req)
+        
         return success_response(
             RequestSerializer(req).data,
             status_code=status.HTTP_201_CREATED,
@@ -155,9 +160,17 @@ class RequestDetailView(APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
         
+        old_status = req.status
         serializer = RequestUpdateSerializer(req, data=request.data, partial=True, context={"request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        
+        # Send notifications based on status change
+        if req.status != old_status:
+            if req.status == "accepted":
+                notification_service.notify_request_accepted(req)
+            elif req.status == "rejected":
+                notification_service.notify_request_rejected(req)
         
         # If accepted, update shipment traveler
         if req.status == "accepted" and req.shipment:
@@ -267,6 +280,9 @@ class CounterOfferCreateView(APIView):
             receiver=counter_receiver,
             **serializer.validated_data
         )
+        
+        # Send notification to receiver of counter offer
+        notification_service.notify_counter_offer(counter_offer)
         
         # Update request status
         req.status = "countered"
