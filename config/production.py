@@ -102,13 +102,19 @@ LOGGING["root"] = {
 REDIS_URL = config("REDIS_URL", default=None)
 
 if REDIS_URL:
+    # Fix for Heroku Redis SSL certificate issues
+    import ssl
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": REDIS_URL,
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "CONNECTION_POOL_KWARGS": {"max_connections": 50, "retry_on_timeout": True},
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 50, 
+                    "retry_on_timeout": True,
+                    "ssl_cert_reqs": None,  # Disable SSL certificate verification for Heroku
+                },
                 "SOCKET_CONNECT_TIMEOUT": 5,
                 "SOCKET_TIMEOUT": 5,
             },
