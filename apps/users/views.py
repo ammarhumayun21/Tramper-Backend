@@ -6,6 +6,7 @@ JWT-based authentication with drf-spectacular documentation.
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.parsers import JSONParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
@@ -23,10 +24,12 @@ from core.api import success_response
 from core.emails.welcome import send_welcome_email
 from core.emails.password_reset import send_password_reset_email
 from core.storage import s3_storage
+from core.parsers import NestedMultiPartParser, NestedFormParser
 
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [NestedMultiPartParser, NestedFormParser, JSONParser]
 
     @extend_schema(
         tags=["Authentication"],
@@ -145,6 +148,7 @@ class PasswordResetConfirmView(APIView):
 class CurrentUserView(APIView):
     """Get current authenticated user."""
     permission_classes = [IsAuthenticated]
+    parser_classes = [NestedMultiPartParser, NestedFormParser, JSONParser]
 
     @extend_schema(
         tags=["Users"],

@@ -43,6 +43,7 @@ LOCAL_APPS = [
     "core.apps.CoreConfig",
     "apps.users.apps.UsersConfig",
     "apps.trips.apps.TripsConfig",
+    "apps.shipments.apps.ShipmentsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -239,6 +240,10 @@ SPECTACULAR_SETTINGS = {
     # Tag organization
     "TAGS": [
         {"name": "Authentication", "description": "User authentication and registration"},
+        {"name": "Users", "description": "User profile management"},
+        {"name": "Trips", "description": "Trip management and listings"},
+        {"name": "Shipments", "description": "Shipment requests and management"},
+        {"name": "Shipment Items", "description": "Items within shipments"},
     ],
 }
 

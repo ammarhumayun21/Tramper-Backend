@@ -18,29 +18,37 @@ from rest_framework.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-def _normalize_errors(detail):
+def _normalize_errors(detail, parent_field=None):
     """
     Normalize error details into a single error message string.
     Returns only the first error encountered.
     Handles dict, list, and ErrorDetail objects from DRF and simplejwt.
+    Supports deeply nested errors from nested serializers.
     """
     if isinstance(detail, dict):
         # Get the first field and its error message
         first_field = next(iter(detail.keys()))
         first_msgs = detail[first_field]
         
+        # Build the full field path
+        if parent_field:
+            full_field = f"{parent_field}.{first_field}"
+        else:
+            full_field = first_field
+        
         if isinstance(first_msgs, list):
-            # Take first error message from list
-            msg = str(first_msgs[0])
-        elif isinstance(first_msgs, dict):
-            # Handle nested dict (e.g., from simplejwt TokenError)
-            if 'detail' in first_msgs:
-                msg = str(first_msgs['detail'])
-            elif 'message' in first_msgs:
-                msg = str(first_msgs['message'])
+            if len(first_msgs) > 0:
+                first_item = first_msgs[0]
+                # Check if it's a nested dict (e.g., list of objects with errors)
+                if isinstance(first_item, dict):
+                    return _normalize_errors(first_item, full_field)
+                else:
+                    msg = str(first_item)
             else:
-                first_value = next(iter(first_msgs.values()), first_msgs)
-                msg = str(first_value)
+                msg = "Invalid value"
+        elif isinstance(first_msgs, dict):
+            # Handle nested dict (recursively)
+            return _normalize_errors(first_msgs, full_field)
         else:
             msg = str(first_msgs)
         
@@ -48,10 +56,17 @@ def _normalize_errors(detail):
         if first_field == 'non_field_errors' or first_field == 'detail':
             return msg
         else:
-            return f"{first_field} {msg.lower()}" if msg[0].isupper() else f"{first_field} {msg}"
+            # Clean up the message
+            msg = msg.lower() if msg and msg[0].isupper() else msg
+            return f"{full_field} {msg}"
     
     if isinstance(detail, list):
-        return str(detail[0])
+        if len(detail) > 0:
+            first_item = detail[0]
+            if isinstance(first_item, dict):
+                return _normalize_errors(first_item, parent_field)
+            return str(first_item)
+        return "Invalid value"
     
     return str(detail)
 
