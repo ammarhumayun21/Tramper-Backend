@@ -17,10 +17,12 @@ from .serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
     UserSettingsSerializer,
+    UserUpdateSerializer,
 )
 from core.api import success_response
 from core.emails.welcome import send_welcome_email
 from core.emails.password_reset import send_password_reset_email
+from core.storage import s3_storage
 
 
 class RegisterView(APIView):
@@ -39,7 +41,23 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
+        # Extract profile_image from validated data if present
+        profile_image = serializer.validated_data.pop('profile_image', None)
+        
+        # Create user
         user = serializer.save()
+        
+        # Upload profile image to S3 if provided
+        if profile_image:
+            try:
+                profile_image_url = s3_storage.upload_image(profile_image, folder="profile_images")
+                user.profile_image_url = profile_image_url
+                user.save(update_fields=['profile_image_url'])
+            except Exception as e:
+                # Log error but don't fail registration
+                print(f"Failed to upload profile image: {str(e)}")
+        
         refresh = RefreshToken.for_user(user)
         send_welcome_email(user)
         return success_response(
@@ -140,6 +158,39 @@ class CurrentUserView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return success_response(serializer.data)
+
+    @extend_schema(
+        tags=["Users"],
+        summary="Update current user profile",
+        description="Update the currently authenticated user's profile.",
+        request=UserUpdateSerializer,
+        responses={
+            200: OpenApiResponse(response=UserSerializer, description="Updated user data."),
+            400: OpenApiResponse(description="Validation error."),
+            401: OpenApiResponse(description="Not authenticated."),
+        },
+    )
+    def patch(self, request):
+        serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        
+        # Extract profile_image if present
+        profile_image = serializer.validated_data.pop('profile_image', None)
+        
+        # Update user
+        user = serializer.save()
+        
+        # Upload profile image to S3 if provided
+        if profile_image:
+            try:
+                profile_image_url = s3_storage.upload_image(profile_image, folder="avatars")
+                user.profile_image_url = profile_image_url
+                user.save(update_fields=['profile_image_url'])
+            except Exception as e:
+                # Log error but don't fail update
+                print(f"Failed to upload profile image: {str(e)}")
+        
+        return success_response(UserSerializer(user).data)
 
 
 class CurrentUserSettingsView(APIView):

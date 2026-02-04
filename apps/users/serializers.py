@@ -44,6 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
             "id",
             "is_email_verified",
             "is_phone_verified",
+            "profile_image_url",
             "rating",
             "total_trips",
             "total_deals",
@@ -69,6 +70,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         help_text=_("Confirm your password."),
     )
 
+    profile_image = serializers.ImageField(
+        write_only=True,
+        required=False,
+        help_text=_("User profile image (will be uploaded to S3)."),
+    )
+
     class Meta:
         model = User
         fields = [
@@ -78,6 +85,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "password",
             "password_confirm",
             "phone",
+            "profile_image",
         ]
         extra_kwargs = {
             "email": {"required": True},
@@ -284,3 +292,39 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating user profile."""
+
+    profile_image = serializers.ImageField(
+        write_only=True,
+        required=False,
+        help_text=_("User profile image (will be uploaded to S3)."),
+    )
+
+    class Meta:
+        model = User
+        fields = [
+            "full_name",
+            "username",
+            "phone",
+            "address",
+            "city",
+            "country",
+            "bio",
+            "profile_image",
+        ]
+        extra_kwargs = {
+            "username": {"required": False},
+        }
+
+    def validate_username(self, value):
+        """Validate username uniqueness (exclude current user)."""
+        user = self.instance
+        if User.objects.filter(username=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError(
+                _("A user with this username already exists.")
+            )
+        return value
+
