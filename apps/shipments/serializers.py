@@ -392,7 +392,7 @@ class ShipmentUpdateSerializer(serializers.ModelSerializer):
                                 s3_storage.delete_image(url)
                             except Exception:
                                 pass
-                        item.delete()
+                        item.delete() 
             else:
                 # ID-based update mode
                 for item_data in items_data:
