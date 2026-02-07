@@ -7,6 +7,7 @@ from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
+from core.models import Location
 
 
 class TripCapacity(models.Model):
@@ -79,20 +80,15 @@ class Trip(models.Model):
     """
 
     MODE_CHOICES = [
-        ("car", _("Car")),
-        ("bus", _("Bus")),
+        ("trip", _("Trip")),
         ("train", _("Train")),
-        ("plane", _("Plane")),
         ("ship", _("Ship")),
-        ("other", _("Other")),
+        ("bus", _("Bus")),
     ]
 
     STATUS_CHOICES = [
-        ("draft", _("Draft")),
-        ("active", _("Active")),
-        ("in_progress", _("In Progress")),
-        ("completed", _("Completed")),
-        ("cancelled", _("Cancelled")),
+        ("valid", _("Valid")),
+        ("invalid", _("Invalid")),
     ]
 
     CATEGORY_CHOICES = [
@@ -132,27 +128,37 @@ class Trip(models.Model):
     mode = models.CharField(
         max_length=20,
         choices=MODE_CHOICES,
-        default="car",
+        default="trip",
         verbose_name=_("mode of transport"),
     )
 
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default="draft",
+        default="valid",
         verbose_name=_("status"),
     )
 
-    from_location = models.CharField(
-        max_length=255,
+    from_location = models.ForeignKey(
+        Location,
+        on_delete=models.PROTECT,
+        related_name="trips_from",
         verbose_name=_("from location"),
-        db_column="from_location",
     )
 
-    to_location = models.CharField(
-        max_length=255,
+    to_location = models.ForeignKey(
+        Location,
+        on_delete=models.PROTECT,
+        related_name="trips_to",
         verbose_name=_("to location"),
-        db_column="to_location",
+    )
+
+    booking_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name=_("booking reference"),
+        help_text=_("Booking or ticket reference number"),
     )
 
     departure_date = models.DateField(

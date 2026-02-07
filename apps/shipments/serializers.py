@@ -6,6 +6,8 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from .models import Shipment, ShipmentItem, Dimension
 from core.storage import s3_storage
+from core.serializers import LocationSerializer
+from core.models import Location
 
 
 class DimensionSerializer(serializers.ModelSerializer):
@@ -167,6 +169,16 @@ class ShipmentSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "sender_id", "created_at", "updated_at"]
+    
+    def to_representation(self, instance):
+        """Return complete location objects in response."""
+        data = super().to_representation(instance)
+        # Replace location UUIDs with full objects
+        if instance.from_location:
+            data['from_location'] = LocationSerializer(instance.from_location).data
+        if instance.to_location:
+            data['to_location'] = LocationSerializer(instance.to_location).data
+        return data
 
 
 class ShipmentListSerializer(serializers.ModelSerializer):
@@ -196,12 +208,24 @@ class ShipmentListSerializer(serializers.ModelSerializer):
     def get_items_count(self, obj):
         """Get count of items in shipment."""
         return obj.items.count()
+    
+    def to_representation(self, instance):
+        """Return complete location objects in response."""
+        data = super().to_representation(instance)
+        # Replace location UUIDs with full objects
+        if instance.from_location:
+            data['from_location'] = LocationSerializer(instance.from_location).data
+        if instance.to_location:
+            data['to_location'] = LocationSerializer(instance.to_location).data
+        return data
 
 
 class ShipmentCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating shipments with items."""
 
     items = ShipmentItemSerializer(many=True)
+    from_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
+    to_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
 
     class Meta:
         model = Shipment
@@ -255,6 +279,8 @@ class ShipmentUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating shipments."""
 
     items = ShipmentItemSerializer(many=True, required=False)
+    from_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all(), required=False)
+    to_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all(), required=False)
 
     class Meta:
         model = Shipment

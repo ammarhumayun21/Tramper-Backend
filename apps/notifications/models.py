@@ -15,11 +15,12 @@ class Notification(models.Model):
     """
 
     CATEGORY_CHOICES = [
-        ("request", _("Request")),
-        ("counter_offer", _("Counter Offer")),
-        ("shipment", _("Shipment")),
-        ("trip", _("Trip")),
-        ("system", _("System")),
+        ("platform", _("Platform")),
+        ("traveler", _("Traveler")),
+        ("shopping", _("Shopping")),
+        ("shipment_request", _("Shipment Request")),
+        ("shipment_sent", _("Shipment Sent")),
+        ("other", _("Other")),
     ]
 
     id = models.UUIDField(
@@ -49,7 +50,7 @@ class Notification(models.Model):
     category = models.CharField(
         max_length=20,
         choices=CATEGORY_CHOICES,
-        default="system",
+        default="other",
         verbose_name=_("category"),
     )
 

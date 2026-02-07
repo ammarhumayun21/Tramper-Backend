@@ -3,6 +3,7 @@ Serializer mixins for common functionality.
 """
 
 from rest_framework import serializers
+from .models import Location
 
 
 class TimestampedSerializerMixin(serializers.Serializer):
@@ -30,3 +31,28 @@ class TranslatedChoiceField(serializers.ChoiceField):
             "value": value,
             "display": dict(self.choices).get(value, value),
         }
+
+
+class LocationSerializer(serializers.ModelSerializer):
+    """Serializer for Location model."""
+
+    class Meta:
+        model = Location
+        fields = [
+            "id",
+            "country",
+            "city",
+            "airport_name",
+            "iata_code",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class LocationCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating Location (without read-only fields)."""
+
+    class Meta:
+        model = Location
+        fields = ["country", "city", "airport_name", "iata_code"]

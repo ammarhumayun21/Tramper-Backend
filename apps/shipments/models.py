@@ -8,6 +8,8 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 
+from core.models import Location
+
 
 class Dimension(models.Model):
     """
@@ -123,16 +125,18 @@ class Shipment(models.Model):
         verbose_name=_("status"),
     )
 
-    from_location = models.CharField(
-        max_length=255,
+    from_location = models.ForeignKey(
+        Location,
+        on_delete=models.PROTECT,
+        related_name="shipments_from",
         verbose_name=_("from location"),
-        db_column="from_location",
     )
 
-    to_location = models.CharField(
-        max_length=255,
+    to_location = models.ForeignKey(
+        Location,
+        on_delete=models.PROTECT,
+        related_name="shipments_to",
         verbose_name=_("to location"),
-        db_column="to_location",
     )
 
     travel_date = models.DateTimeField(

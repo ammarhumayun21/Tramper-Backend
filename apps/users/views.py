@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
@@ -31,7 +31,7 @@ from core.parsers import NestedMultiPartParser, NestedFormParser
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
-    parser_classes = [NestedMultiPartParser, NestedFormParser, JSONParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(
         tags=["Authentication"],
@@ -62,7 +62,7 @@ class RegisterView(APIView):
             except Exception as e:
                 # Log error but don't fail registration
                 print(f"Failed to upload profile image: {str(e)}")
-        
+
         refresh = RefreshToken.for_user(user)
         send_welcome_email(user)
         return success_response(
@@ -150,7 +150,7 @@ class PasswordResetConfirmView(APIView):
 class CurrentUserView(APIView):
     """Get current authenticated user."""
     permission_classes = [IsAuthenticated]
-    parser_classes = [NestedMultiPartParser, NestedFormParser, JSONParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(
         tags=["Users"],

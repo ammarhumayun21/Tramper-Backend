@@ -3,6 +3,7 @@ Authentication URLs for Tramper.
 """
 
 from django.urls import path
+from rest_framework import status
 from drf_spectacular.utils import extend_schema
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -15,8 +16,10 @@ from .views import (
     CurrentUserSettingsView,
     AllUsersView,
 )
+from core.api import success_response
 
-# Wrap TokenRefreshView with proper schema
+
+# Wrap TokenRefreshView with proper schema and success_response
 class TokenRefreshViewWithSchema(TokenRefreshView):
     @extend_schema(
         tags=["Authentication"],
@@ -24,7 +27,10 @@ class TokenRefreshViewWithSchema(TokenRefreshView):
         description="Generate a new access token using a valid refresh token.",
     )
     def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            return success_response(response.data)
+        return response
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),

@@ -12,7 +12,7 @@ class NotificationService:
     """
 
     @staticmethod
-    def create(user, title, message, category="system", request_id=None, shipment_id=None, trip_id=None):
+    def create(user, title, message, category="other", request_id=None, shipment_id=None, trip_id=None):
         """Create a notification for a user."""
         return Notification.objects.create(
             user=user,
@@ -40,7 +40,7 @@ class NotificationService:
             user=request_obj.receiver,
             title=title,
             message=message,
-            category="request",
+            category="shipment_request",
             request_id=request_obj.id,
             shipment_id=request_obj.shipment_id,
             trip_id=request_obj.trip_id,
@@ -58,7 +58,7 @@ class NotificationService:
             user=request_obj.sender,
             title=title,
             message=message,
-            category="request",
+            category="shipment_request",
             request_id=request_obj.id,
             shipment_id=request_obj.shipment_id,
             trip_id=request_obj.trip_id,
@@ -76,7 +76,7 @@ class NotificationService:
             user=request_obj.sender,
             title=title,
             message=message,
-            category="request",
+            category="shipment_request",
             request_id=request_obj.id,
             shipment_id=request_obj.shipment_id,
             trip_id=request_obj.trip_id,
@@ -94,7 +94,7 @@ class NotificationService:
             user=counter_offer.receiver,
             title=title,
             message=message,
-            category="counter_offer",
+            category="shipment_request",
             request_id=counter_offer.request_id,
         )
 
@@ -102,13 +102,13 @@ class NotificationService:
     def notify_shipment_status_change(shipment, old_status, new_status):
         """Notify shipment owner when status changes."""
         title = "Shipment Status Updated"
-        message = f"Your shipment '{shipment.title}' status changed from {old_status} to {new_status}."
+        message = f"Your shipment '{shipment.name}' status changed from {old_status} to {new_status}."
 
         return NotificationService.create(
             user=shipment.sender,
             title=title,
             message=message,
-            category="shipment",
+            category="shipment_sent",
             shipment_id=shipment.id,
         )
 
@@ -122,8 +122,40 @@ class NotificationService:
             user=trip.traveler,
             title=title,
             message=message,
-            category="trip",
+            category="traveler",
             trip_id=trip.id,
+        )
+
+    @staticmethod
+    def notify_platform(user, title, message):
+        """Send a platform notification to a user."""
+        return NotificationService.create(
+            user=user,
+            title=title,
+            message=message,
+            category="platform",
+        )
+
+    @staticmethod
+    def notify_shopping(user, title, message, shipment_id=None):
+        """Send a shopping notification to a user."""
+        return NotificationService.create(
+            user=user,
+            title=title,
+            message=message,
+            category="shopping",
+            shipment_id=shipment_id,
+        )
+
+    @staticmethod
+    def notify_traveler(user, title, message, trip_id=None):
+        """Send a traveler notification to a user."""
+        return NotificationService.create(
+            user=user,
+            title=title,
+            message=message,
+            category="traveler",
+            trip_id=trip_id,
         )
 
 
