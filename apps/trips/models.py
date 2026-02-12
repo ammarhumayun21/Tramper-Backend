@@ -7,7 +7,7 @@ from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
-from core.models import Location
+from core.models import Location, Airline
 
 
 class TripCapacity(models.Model):
@@ -117,11 +117,15 @@ class Trip(models.Model):
 
     first_name = models.CharField(
         max_length=150,
+        blank=True,
+        null=True,
         verbose_name=_("first name"),
     )
 
     last_name = models.CharField(
         max_length=150,
+        blank=True,
+        null=True,
         verbose_name=_("last name"),
     )
 
@@ -194,6 +198,37 @@ class Trip(models.Model):
         blank=True,
         verbose_name=_("notes"),
         help_text=_("Additional notes or requirements"),
+    )
+
+    airline = models.ForeignKey(
+        Airline,
+        on_delete=models.SET_NULL,
+        related_name="trips",
+        null=True,
+        blank=True,
+        verbose_name=_("airline"),
+        help_text=_("Airline for air travel"),
+    )
+
+    pickup_availability_start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_("pickup availability start date"),
+        help_text=_("Start date for pickup availability"),
+    )
+
+    pickup_availability_end_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_("pickup availability end date"),
+        help_text=_("End date for pickup availability"),
+    )
+
+    meeting_points = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("meeting points"),
+        help_text=_("List of meeting point locations"),
     )
 
     created_at = models.DateTimeField(

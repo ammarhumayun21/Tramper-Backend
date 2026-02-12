@@ -14,6 +14,8 @@ from django.urls import path, include
 from django.conf import settings
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
+from core.urls import airline_urlpatterns
+
 urlpatterns = [
     # Django Admin
     path("admin/", admin.site.urls),
@@ -29,6 +31,8 @@ urlpatterns = [
     path("api/v1/notifications/", include("apps.notifications.urls")),
     # API v1 - Locations endpoints
     path("api/v1/locations/", include("core.urls")),
+    # API v1 - Airlines endpoints
+    path("api/v1/airlines/", include(airline_urlpatterns)),
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

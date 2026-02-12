@@ -5,8 +5,8 @@ Trip serializers for Tramper.
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from .models import Trip, TripCapacity
-from core.serializers import LocationSerializer
-from core.models import Location
+from core.serializers import LocationSerializer, AirlineSerializer
+from core.models import Location, Airline
 
 class TripCapacitySerializer(serializers.ModelSerializer):
     """Serializer for trip capacity."""
@@ -40,6 +40,11 @@ class TripSerializer(serializers.ModelSerializer):
     traveler_id = serializers.UUIDField(source="traveler.id", read_only=True)
     from_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     to_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
+    airline = serializers.PrimaryKeyRelatedField(
+        queryset=Airline.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Trip
@@ -58,19 +63,26 @@ class TripSerializer(serializers.ModelSerializer):
             "transport_details",
             "category",
             "notes",
+            "airline",
+            "pickup_availability_start_date",
+            "pickup_availability_end_date",
+            "meeting_points",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "traveler_id", "created_at", "updated_at"]
     
     def to_representation(self, instance):
-        """Return complete location objects in response."""
+        """Return complete location and airline objects in response."""
         data = super().to_representation(instance)
         # Replace location UUIDs with full objects
         if instance.from_location:
             data['from_location'] = LocationSerializer(instance.from_location).data
         if instance.to_location:
             data['to_location'] = LocationSerializer(instance.to_location).data
+        # Replace airline UUID with full object
+        if instance.airline:
+            data['airline'] = AirlineSerializer(instance.airline).data
         return data
 
     def validate_departure_time(self, value):
@@ -139,16 +151,23 @@ class TripListSerializer(serializers.ModelSerializer):
             "departure_time",
             "capacity",
             "category",
+            "airline",
+            "pickup_availability_start_date",
+            "pickup_availability_end_date",
+            "meeting_points",
             "created_at",
         ]
         read_only_fields = fields
     
     def to_representation(self, instance):
-        """Return complete location objects in response."""
+        """Return complete location and airline objects in response."""
         data = super().to_representation(instance)
         # Replace location UUIDs with full objects
         if instance.from_location:
             data['from_location'] = LocationSerializer(instance.from_location).data
         if instance.to_location:
             data['to_location'] = LocationSerializer(instance.to_location).data
+        # Replace airline UUID with full object
+        if instance.airline:
+            data['airline'] = AirlineSerializer(instance.airline).data
         return data

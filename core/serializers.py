@@ -3,7 +3,7 @@ Serializer mixins for common functionality.
 """
 
 from rest_framework import serializers
-from .models import Location
+from .models import Location, Airline
 
 
 class TimestampedSerializerMixin(serializers.Serializer):
@@ -56,3 +56,19 @@ class LocationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
         fields = ["country", "city", "airport_name", "iata_code"]
+
+
+class AirlineSerializer(serializers.ModelSerializer):
+    """Serializer for Airline model."""
+
+    class Meta:
+        model = Airline
+        fields = [
+            "id",
+            "name",
+            "iata_code",
+            "country",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

@@ -1,6 +1,6 @@
 """
 Core views for Tramper.
-Location API endpoints.
+Location and Airline API endpoints.
 """
 
 from django.db import models
@@ -11,8 +11,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
-from .models import Location
-from .serializers import LocationSerializer, LocationCreateSerializer
+from .models import Location, Airline
+from .serializers import LocationSerializer, LocationCreateSerializer, AirlineSerializer
 from core.api import success_response
 
 
@@ -143,3 +143,47 @@ class LocationDetailView(APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
         return success_response(LocationSerializer(location).data)
+
+
+class AirlineListView(ListAPIView):
+    """
+    List all airlines or search by query.
+    """
+    serializer_class = AirlineSerializer
+    permission_classes = [AllowAny]
+    queryset = Airline.objects.all()
+
+    def get_queryset(self):
+        """Filter airlines by search query."""
+        queryset = super().get_queryset()
+        search = self.request.query_params.get("search", "").strip()
+        
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search) |
+                models.Q(iata_code__icontains=search) |
+                models.Q(country__icontains=search)
+            )
+        
+        return queryset.order_by("name")
+
+    @extend_schema(
+        tags=["Airlines"],
+        summary="List airlines",
+        description="Get all airlines or search by name, IATA code, or country.",
+        parameters=[
+            OpenApiParameter(
+                "search",
+                OpenApiTypes.STR,
+                description="Search query to filter airlines",
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=AirlineSerializer(many=True),
+                description="List of airlines",
+            ),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)

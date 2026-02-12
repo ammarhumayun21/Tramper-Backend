@@ -211,15 +211,26 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         """Normalize email."""
         return value.lower()
 
-    def create(self, validated_data):
-        """Create password reset token."""
-        email = validated_data.get("email")
-
+    def validate(self, attrs):
+        """Check if user exists and add to validated data."""
+        email = attrs.get("email")
+        
         try:
             user = User.objects.get(email=email)
+            attrs["user"] = user
         except User.DoesNotExist:
-            # Return silently to prevent email enumeration
-            return None
+            # Don't raise error to prevent email enumeration
+            attrs["user"] = None
+        
+        return attrs
+
+    def create(self, validated_data):
+        """Create password reset token."""
+        user = validated_data.get("user")
+        
+        if not user:
+            # This should not be called if user is None
+            raise serializers.ValidationError("User not found")
 
         # Invalidate previous tokens
         PasswordResetToken.objects.filter(user=user, is_used=False).update(is_used=True)

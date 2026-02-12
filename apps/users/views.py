@@ -119,9 +119,12 @@ class PasswordResetView(APIView):
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        reset_token = serializer.save()
-        if reset_token:
+        
+        # Only call save() if user exists (to avoid DRF assertion error)
+        if serializer.validated_data.get("user"):
+            reset_token = serializer.save()
             send_password_reset_email(reset_token.user, reset_token.token)
+        
         return success_response(
             {"message": "If an account with this email exists, you will receive a password reset link."}
         )
