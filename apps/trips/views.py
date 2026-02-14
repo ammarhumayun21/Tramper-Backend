@@ -11,7 +11,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParamet
 from drf_spectacular.types import OpenApiTypes
 
 from .models import Trip
-from .serializers import TripSerializer, TripListSerializer
+from .serializers import TripSerializer, TripListSerializer, MyTripListSerializer
 from .permissions import IsOwnerOrAdminOrReadOnly
 from core.api import success_response
 
@@ -19,15 +19,24 @@ from core.api import success_response
 class TripListCreateView(ListAPIView):
     """
     List all trips or create a new trip.
-    GET: Anyone can list trips
+    GET: Anyone can list trips (excluding current user's trips)
     POST: Authenticated users can create trips
     """
-    queryset = Trip.objects.select_related("capacity", "traveler").all()
     serializer_class = TripListSerializer
     permission_classes = [IsOwnerOrAdminOrReadOnly]
     filterset_fields = ["status", "mode", "category"]
     search_fields = ["from_location", "to_location", "first_name", "last_name"]
     ordering_fields = ["departure_date", "departure_time", "created_at"]
+
+    def get_queryset(self):
+        """Get all trips excluding the current user's trips."""
+        queryset = Trip.objects.select_related("capacity", "traveler").all()
+        
+        # Exclude trips where user is the traveler
+        if self.request.user.is_authenticated:
+            queryset = queryset.exclude(traveler=self.request.user)
+        
+        return queryset.order_by("-created_at")
 
     @extend_schema(
         tags=["Trips"],
@@ -156,21 +165,24 @@ class TripDetailView(APIView):
 class MyTripsView(ListAPIView):
     """
     Get all trips created by the authenticated user.
+    Includes is_accepted flag and accepted requests with shipments.
     """
-    serializer_class = TripListSerializer
+    serializer_class = MyTripListSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Trip.objects.select_related("capacity").filter(
+        return Trip.objects.select_related("capacity", "traveler").prefetch_related(
+            "requests", "requests__shipment", "requests__shipment__items"
+        ).filter(
             traveler=self.request.user
-        )
+        ).order_by("-created_at")
 
     @extend_schema(
         tags=["Trips"],
         summary="Get my trips",
-        description="Get all trips created by the authenticated user.",
+        description="Get all trips created by the authenticated user with accepted requests and shipments.",
         responses={
-            200: OpenApiResponse(response=TripListSerializer(many=True), description="User's trips"),
+            200: OpenApiResponse(response=MyTripListSerializer(many=True), description="User's trips with requests"),
             401: OpenApiResponse(description="Not authenticated"),
         },
     )

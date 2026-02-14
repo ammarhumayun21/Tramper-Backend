@@ -10,11 +10,15 @@ from .views import (
     ShipmentItemListCreateView,
     ShipmentItemDetailView,
     ShipmentItemImageDeleteView,
+    CategoryListView,
 )
 
 app_name = "shipments"
 
 urlpatterns = [
+    # Categories endpoint
+    path("categories/", CategoryListView.as_view(), name="category-list"),
+    
     # My shipments endpoint (must be before <uuid:pk>)
     path("my/", MyShipmentsView.as_view(), name="my-shipments"),
     

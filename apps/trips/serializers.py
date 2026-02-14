@@ -7,6 +7,25 @@ from django.utils.translation import gettext_lazy as _
 from .models import Trip, TripCapacity
 from core.serializers import LocationSerializer, AirlineSerializer
 from core.models import Location, Airline
+from apps.users.models import User
+
+
+class UserSummarySerializer(serializers.ModelSerializer):
+    """Lightweight serializer for user summary in trips."""
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "full_name",
+            "profile_image_url",
+            "rating",
+            "total_trips",
+            "total_deals",
+            "total_shipments",
+        ]
+        read_only_fields = fields
+
 
 class TripCapacitySerializer(serializers.ModelSerializer):
     """Serializer for trip capacity."""
@@ -38,6 +57,7 @@ class TripSerializer(serializers.ModelSerializer):
 
     capacity = TripCapacitySerializer()
     traveler_id = serializers.UUIDField(source="traveler.id", read_only=True)
+    traveler = UserSummarySerializer(read_only=True)
     from_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     to_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     airline = serializers.PrimaryKeyRelatedField(
@@ -51,6 +71,7 @@ class TripSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "traveler_id",
+            "traveler",
             "first_name",
             "last_name",
             "mode",
@@ -70,7 +91,7 @@ class TripSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "traveler_id", "created_at", "updated_at"]
+        read_only_fields = ["id", "traveler_id", "traveler", "created_at", "updated_at"]
     
     def to_representation(self, instance):
         """Return complete location and airline objects in response."""
@@ -85,6 +106,83 @@ class TripSerializer(serializers.ModelSerializer):
             data['airline'] = AirlineSerializer(instance.airline).data
         return data
 
+
+class MyTripListSerializer(serializers.ModelSerializer):
+    """Serializer for current user's trips with accepted request info."""
+
+    capacity = TripCapacitySerializer(read_only=True)
+    traveler_id = serializers.UUIDField(source="traveler.id", read_only=True)
+    is_accepted = serializers.SerializerMethodField()
+    requests = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Trip
+        fields = [
+            "id",
+            "traveler_id",
+            "first_name",
+            "last_name",
+            "mode",
+            "status",
+            "from_location",
+            "to_location",
+            "departure_date",
+            "departure_time",
+            "capacity",
+            "category",
+            "airline",
+            "pickup_availability_start_date",
+            "pickup_availability_end_date",
+            "meeting_points",
+            "is_accepted",
+            "requests",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_is_accepted(self, obj):
+        """Check if the trip has any accepted requests."""
+        return obj.requests.filter(status="accepted").exists()
+
+    def get_requests(self, obj):
+        """Get all accepted requests for this trip with shipment details."""
+        from apps.requests.models import Request
+        from apps.shipments.serializers import ShipmentListSerializer
+        
+        accepted_requests = obj.requests.filter(status="accepted").select_related(
+            "sender", "receiver", "shipment"
+        ).prefetch_related("shipment__items")
+        
+        requests_data = []
+        for request in accepted_requests:
+            request_data = {
+                "id": str(request.id),
+                "sender_id": str(request.sender.id),
+                "receiver_id": str(request.receiver.id),
+                "offered_price": str(request.offered_price),
+                "status": request.status,
+                "message": request.message,
+                "created_at": request.created_at.isoformat() if request.created_at else None,
+            }
+            # Include shipment details if available
+            if request.shipment:
+                request_data["shipment"] = ShipmentListSerializer(request.shipment).data
+            requests_data.append(request_data)
+        
+        return requests_data
+
+    def to_representation(self, instance):
+        """Return complete location and airline objects in response."""
+        data = super().to_representation(instance)
+        # Replace location UUIDs with full objects
+        if instance.from_location:
+            data['from_location'] = LocationSerializer(instance.from_location).data
+        if instance.to_location:
+            data['to_location'] = LocationSerializer(instance.to_location).data
+        # Replace airline UUID with full object
+        if instance.airline:
+            data['airline'] = AirlineSerializer(instance.airline).data
+        return data
     def validate_departure_time(self, value):
         """Handle both time and datetime strings for departure_time."""
         if isinstance(value, str):

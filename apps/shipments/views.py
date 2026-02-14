@@ -13,13 +13,15 @@ from drf_spectacular.types import OpenApiTypes
 
 from core.parsers import NestedMultiPartParser, NestedFormParser
 
-from .models import Shipment, ShipmentItem
+from .models import Shipment, ShipmentItem, Category
 from .serializers import (
     ShipmentSerializer,
     ShipmentListSerializer,
     ShipmentCreateSerializer,
     ShipmentUpdateSerializer,
     ShipmentItemSerializer,
+    CategorySerializer,
+    MyShipmentListSerializer,
 )
 from .permissions import IsOwnerOrAdminOrReadOnly
 from core.api import success_response
@@ -28,15 +30,16 @@ from core.api import success_response
 class MyShipmentsView(ListAPIView):
     """
     List current user's shipments (as sender or traveler).
+    Includes is_accepted flag to indicate if there's an accepted request.
     """
-    serializer_class = ShipmentListSerializer
+    serializer_class = MyShipmentListSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """Get shipments where user is sender or traveler."""
         from django.db.models import Q
         return Shipment.objects.select_related("sender", "traveler").prefetch_related(
-            "items"
+            "items", "requests"
         ).filter(
             Q(sender=self.request.user) | Q(traveler=self.request.user)
         ).order_by("-created_at")
@@ -44,9 +47,9 @@ class MyShipmentsView(ListAPIView):
     @extend_schema(
         tags=["Shipments"],
         summary="Get my shipments",
-        description="Get all shipments where the current user is sender or traveler.",
+        description="Get all shipments where the current user is sender or traveler. Includes is_accepted flag.",
         responses={
-            200: OpenApiResponse(response=ShipmentListSerializer(many=True), description="List of user's shipments"),
+            200: OpenApiResponse(response=MyShipmentListSerializer(many=True), description="List of user's shipments"),
             401: OpenApiResponse(description="Not authenticated"),
         },
     )
@@ -57,16 +60,28 @@ class MyShipmentsView(ListAPIView):
 class ShipmentListCreateView(ListAPIView):
     """
     List all shipments or create a new shipment.
-    GET: Anyone can list shipments
+    GET: Anyone can list shipments (excluding current user's shipments)
     POST: Authenticated users can create shipments
     """
-    queryset = Shipment.objects.select_related("sender", "traveler").prefetch_related("items").all()
     serializer_class = ShipmentListSerializer
     permission_classes = [IsOwnerOrAdminOrReadOnly]
     parser_classes = [NestedMultiPartParser, NestedFormParser, JSONParser]
     filterset_fields = ["status", "sender", "traveler"]
     search_fields = ["name", "from_location", "to_location"]
     ordering_fields = ["travel_date", "reward", "created_at"]
+
+    def get_queryset(self):
+        """Get all shipments excluding the current user's shipments."""
+        from django.db.models import Q
+        queryset = Shipment.objects.select_related("sender", "traveler").prefetch_related("items").all()
+        
+        # Exclude shipments where user is sender or traveler
+        if self.request.user.is_authenticated:
+            queryset = queryset.exclude(
+                Q(sender=self.request.user) | Q(traveler=self.request.user)
+            )
+        
+        return queryset.order_by("-created_at")
 
     @extend_schema(
         tags=["Shipments"],
@@ -480,3 +495,23 @@ class ShipmentItemImageDeleteView(APIView):
         
         return success_response(ShipmentItemSerializer(item).data)
 
+
+class CategoryListView(ListAPIView):
+    """
+    List all available categories for shipment items.
+    GET: Anyone can view categories
+    """
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = []
+
+    @extend_schema(
+        tags=["Categories"],
+        summary="List all categories",
+        description="Get a list of all available categories for shipment items.",
+        responses={
+            200: OpenApiResponse(response=CategorySerializer(many=True), description="List of categories"),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)

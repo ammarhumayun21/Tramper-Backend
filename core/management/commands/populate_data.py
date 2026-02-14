@@ -1,10 +1,11 @@
 """
-Management command to populate database with sample locations and airlines.
+Management command to populate database with sample locations, airlines, and categories.
 This command is idempotent - running it multiple times will not create duplicates.
 """
 
 from django.core.management.base import BaseCommand
 from core.models import Location, Airline
+from apps.shipments.models import Category
 
 
 class Command(BaseCommand):
@@ -68,6 +69,60 @@ class Command(BaseCommand):
         {"name": "Finnair", "iata_code": "AY", "country": "Finland", "logo_url": ""},
     ]
 
+    # 50 Categories for Shipment Items
+    CATEGORIES_DATA = [
+        {"name": "Electronics", "description": "Electronic devices and accessories", "icon": "📱"},
+        {"name": "Clothing", "description": "Apparel and fashion items", "icon": "👕"},
+        {"name": "Books", "description": "Books, magazines, and printed materials", "icon": "📚"},
+        {"name": "Documents", "description": "Official documents and papers", "icon": "📄"},
+        {"name": "Cosmetics", "description": "Beauty and personal care products", "icon": "💄"},
+        {"name": "Jewelry", "description": "Jewelry and precious accessories", "icon": "💍"},
+        {"name": "Toys", "description": "Children's toys and games", "icon": "🧸"},
+        {"name": "Food", "description": "Non-perishable food items", "icon": "🍫"},
+        {"name": "Medicine", "description": "Medical supplies and pharmaceuticals", "icon": "💊"},
+        {"name": "Shoes", "description": "Footwear of all types", "icon": "👟"},
+        {"name": "Bags", "description": "Handbags, backpacks, and luggage", "icon": "👜"},
+        {"name": "Watches", "description": "Watches and timepieces", "icon": "⌚"},
+        {"name": "Glasses", "description": "Eyewear and sunglasses", "icon": "👓"},
+        {"name": "Accessories", "description": "Fashion accessories", "icon": "🎀"},
+        {"name": "Sports Equipment", "description": "Sports and fitness gear", "icon": "⚽"},
+        {"name": "Musical Instruments", "description": "Musical instruments and accessories", "icon": "🎸"},
+        {"name": "Art Supplies", "description": "Art and craft materials", "icon": "🎨"},
+        {"name": "Home Decor", "description": "Decorative items for home", "icon": "🖼️"},
+        {"name": "Kitchen Items", "description": "Kitchen utensils and gadgets", "icon": "🍳"},
+        {"name": "Baby Products", "description": "Baby care and nursery items", "icon": "👶"},
+        {"name": "Pet Supplies", "description": "Pet food and accessories", "icon": "🐕"},
+        {"name": "Office Supplies", "description": "Stationery and office equipment", "icon": "📎"},
+        {"name": "Computer Parts", "description": "Computer hardware and components", "icon": "💻"},
+        {"name": "Phone Accessories", "description": "Mobile phone cases and accessories", "icon": "📱"},
+        {"name": "Camera Equipment", "description": "Cameras and photography gear", "icon": "📷"},
+        {"name": "Video Games", "description": "Gaming consoles and video games", "icon": "🎮"},
+        {"name": "DVDs & Blu-rays", "description": "Movies and entertainment media", "icon": "📀"},
+        {"name": "Musical Albums", "description": "Music CDs and vinyl records", "icon": "💿"},
+        {"name": "Tools", "description": "Hardware tools and equipment", "icon": "🔧"},
+        {"name": "Garden Supplies", "description": "Gardening tools and seeds", "icon": "🌱"},
+        {"name": "Automotive Parts", "description": "Car parts and accessories", "icon": "🚗"},
+        {"name": "Bicycle Parts", "description": "Bicycle components and accessories", "icon": "🚴"},
+        {"name": "Camping Gear", "description": "Outdoor and camping equipment", "icon": "⛺"},
+        {"name": "Fishing Equipment", "description": "Fishing rods and tackle", "icon": "🎣"},
+        {"name": "Collectibles", "description": "Collectible items and memorabilia", "icon": "🏆"},
+        {"name": "Antiques", "description": "Antique and vintage items", "icon": "🕰️"},
+        {"name": "Handicrafts", "description": "Handmade crafts and artisan goods", "icon": "🧵"},
+        {"name": "Furniture Parts", "description": "Furniture components and hardware", "icon": "🪑"},
+        {"name": "Textiles", "description": "Fabrics and textile materials", "icon": "🧶"},
+        {"name": "Electrical Supplies", "description": "Electrical components and wiring", "icon": "🔌"},
+        {"name": "Plumbing Supplies", "description": "Plumbing parts and fixtures", "icon": "🚰"},
+        {"name": "Paint & Supplies", "description": "Paint and painting supplies", "icon": "🖌️"},
+        {"name": "Photography Prints", "description": "Printed photographs and artwork", "icon": "🖼️"},
+        {"name": "Souvenirs", "description": "Travel souvenirs and memorabilia", "icon": "🗿"},
+        {"name": "Religious Items", "description": "Religious articles and gifts", "icon": "📿"},
+        {"name": "Seasonal Items", "description": "Holiday and seasonal decorations", "icon": "🎄"},
+        {"name": "Party Supplies", "description": "Party decorations and supplies", "icon": "🎉"},
+        {"name": "Educational Materials", "description": "Educational books and materials", "icon": "📖"},
+        {"name": "Scientific Equipment", "description": "Scientific instruments and supplies", "icon": "🔬"},
+        {"name": "Other", "description": "Miscellaneous items", "icon": "📦"},
+    ]
+
     def handle(self, *args, **options):
         self.stdout.write("Starting data population...")
         
@@ -120,6 +175,31 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Airlines: {airlines_created} created, {airlines_skipped} skipped"
+            )
+        )
+        
+        # Populate categories
+        categories_created = 0
+        categories_skipped = 0
+        
+        for category_data in self.CATEGORIES_DATA:
+            category, created = Category.objects.get_or_create(
+                name=category_data["name"],
+                defaults={
+                    "description": category_data["description"],
+                    "icon": category_data["icon"],
+                }
+            )
+            if created:
+                categories_created += 1
+                self.stdout.write(f"  Created category: {category}")
+            else:
+                categories_skipped += 1
+                self.stdout.write(f"  Skipped (exists): {category}")
+        
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Categories: {categories_created} created, {categories_skipped} skipped"
             )
         )
         

@@ -11,6 +11,58 @@ from django.core.validators import MinValueValidator
 from core.models import Location
 
 
+class Category(models.Model):
+    """
+    Category model for shipment items.
+    Defines available categories for items to be shipped.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name=_("ID"),
+    )
+
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name=_("name"),
+    )
+
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("description"),
+    )
+
+    icon = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name=_("icon"),
+        help_text=_("Icon name or emoji for the category"),
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("created at"),
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_("updated at"),
+    )
+
+    class Meta:
+        verbose_name = _("category")
+        verbose_name_plural = _("categories")
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Dimension(models.Model):
     """
     Dimension model for shipment items.
@@ -209,8 +261,12 @@ class ShipmentItem(models.Model):
         help_text=_("Link to product or item details"),
     )
 
-    category = models.CharField(
-        max_length=100,
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="shipment_items",
         verbose_name=_("category"),
     )
 

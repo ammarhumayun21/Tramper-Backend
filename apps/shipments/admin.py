@@ -3,7 +3,14 @@ Admin configuration for shipments.
 """
 
 from django.contrib import admin
-from .models import Shipment, ShipmentItem, Dimension
+from .models import Shipment, ShipmentItem, Dimension, Category
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ["id", "name", "icon", "created_at"]
+    search_fields = ["name", "description"]
+    readonly_fields = ["created_at", "updated_at"]
 
 
 @admin.register(Dimension)

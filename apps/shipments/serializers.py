@@ -4,10 +4,26 @@ Shipment serializers for Tramper.
 
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
-from .models import Shipment, ShipmentItem, Dimension
+from .models import Shipment, ShipmentItem, Dimension, Category
 from core.storage import s3_storage
 from core.serializers import LocationSerializer
 from core.models import Location
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    """Serializer for categories."""
+
+    class Meta:
+        model = Category
+        fields = [
+            "id",
+            "name",
+            "description",
+            "icon",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class DimensionSerializer(serializers.ModelSerializer):
@@ -30,6 +46,7 @@ class ShipmentItemSerializer(serializers.ModelSerializer):
 
     id = serializers.UUIDField(required=False)
     dimensions = DimensionSerializer(required=False, allow_null=True)
+    category_detail = CategorySerializer(source='category', read_only=True)
     total_price = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -54,6 +71,7 @@ class ShipmentItemSerializer(serializers.ModelSerializer):
             "name",
             "link",
             "category",
+            "category_detail",
             "quantity",
             "single_item_price",
             "single_item_weight",
@@ -209,6 +227,51 @@ class ShipmentListSerializer(serializers.ModelSerializer):
         """Get count of items in shipment."""
         return obj.items.count()
     
+    def to_representation(self, instance):
+        """Return complete location objects in response."""
+        data = super().to_representation(instance)
+        # Replace location UUIDs with full objects
+        if instance.from_location:
+            data['from_location'] = LocationSerializer(instance.from_location).data
+        if instance.to_location:
+            data['to_location'] = LocationSerializer(instance.to_location).data
+        return data
+
+
+class MyShipmentListSerializer(serializers.ModelSerializer):
+    """Serializer for current user's shipments with accepted request info."""
+
+    sender_id = serializers.UUIDField(source="sender.id", read_only=True)
+    traveler_id = serializers.UUIDField(source="traveler.id", read_only=True, allow_null=True)
+    items_count = serializers.SerializerMethodField()
+    is_accepted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Shipment
+        fields = [
+            "id",
+            "sender_id",
+            "traveler_id",
+            "name",
+            "status",
+            "from_location",
+            "to_location",
+            "travel_date",
+            "reward",
+            "items_count",
+            "is_accepted",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_items_count(self, obj):
+        """Get count of items in shipment."""
+        return obj.items.count()
+
+    def get_is_accepted(self, obj):
+        """Check if the shipment has any accepted requests."""
+        return obj.requests.filter(status="accepted").exists()
+
     def to_representation(self, instance):
         """Return complete location objects in response."""
         data = super().to_representation(instance)
