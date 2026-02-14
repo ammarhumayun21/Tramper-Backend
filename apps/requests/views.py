@@ -35,6 +35,10 @@ class MyRequestsView(ListAPIView):
 
     def get_queryset(self):
         """Get requests where user is sender or receiver."""
+        # Handle swagger schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return Request.objects.none()
+        
         user = self.request.user
         request_type = self.request.query_params.get("type", "all")
         

@@ -4,6 +4,8 @@ Request serializers for Tramper.
 
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import Request, CounterOffer
 from apps.shipments.serializers import ShipmentListSerializer
 from apps.trips.serializers import TripListSerializer
@@ -116,7 +118,8 @@ class RequestListSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-    def get_counter_offers_count(self, obj):
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_counter_offers_count(self, obj) -> int:
         """Get count of counter offers."""
         return obj.counter_offers.count()
 

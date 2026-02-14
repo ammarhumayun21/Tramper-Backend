@@ -4,6 +4,8 @@ Shipment serializers for Tramper.
 
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 from .models import Shipment, ShipmentItem, Dimension, Category
 from core.storage import s3_storage
 from core.serializers import LocationSerializer
@@ -168,6 +170,7 @@ class ShipmentSerializer(serializers.ModelSerializer):
     items = ShipmentItemSerializer(many=True, read_only=True)
     sender_id = serializers.UUIDField(source="sender.id", read_only=True)
     traveler_id = serializers.UUIDField(source="traveler.id", read_only=True, allow_null=True)
+    is_accepted = serializers.SerializerMethodField()
 
     class Meta:
         model = Shipment
@@ -183,10 +186,18 @@ class ShipmentSerializer(serializers.ModelSerializer):
             "travel_date",
             "items",
             "reward",
+            "is_accepted",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "sender_id", "created_at", "updated_at"]
+        read_only_fields = ["id", "sender_id", "is_accepted", "created_at", "updated_at"]
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_is_accepted(self, obj) -> bool:
+        """Check if the shipment has any accepted requests."""
+        if not obj.pk:
+            return False
+        return obj.requests.filter(status="accepted").exists()
     
     def to_representation(self, instance):
         """Return complete location objects in response."""
@@ -205,6 +216,7 @@ class ShipmentListSerializer(serializers.ModelSerializer):
     sender_id = serializers.UUIDField(source="sender.id", read_only=True)
     traveler_id = serializers.UUIDField(source="traveler.id", read_only=True, allow_null=True)
     items_count = serializers.SerializerMethodField()
+    is_accepted = serializers.SerializerMethodField()
 
     class Meta:
         model = Shipment
@@ -219,13 +231,22 @@ class ShipmentListSerializer(serializers.ModelSerializer):
             "travel_date",
             "reward",
             "items_count",
+            "is_accepted",
             "created_at",
         ]
-        read_only_fields = ["id", "sender_id", "created_at"]
+        read_only_fields = ["id", "sender_id", "is_accepted", "created_at"]
 
-    def get_items_count(self, obj):
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_items_count(self, obj) -> int:
         """Get count of items in shipment."""
         return obj.items.count()
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_is_accepted(self, obj) -> bool:
+        """Check if the shipment has any accepted requests."""
+        if not obj.pk:
+            return False
+        return obj.requests.filter(status="accepted").exists()
     
     def to_representation(self, instance):
         """Return complete location objects in response."""
@@ -264,12 +285,16 @@ class MyShipmentListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-    def get_items_count(self, obj):
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_items_count(self, obj) -> int:
         """Get count of items in shipment."""
         return obj.items.count()
 
-    def get_is_accepted(self, obj):
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_is_accepted(self, obj) -> bool:
         """Check if the shipment has any accepted requests."""
+        if not obj.pk:
+            return False
         return obj.requests.filter(status="accepted").exists()
 
     def to_representation(self, instance):

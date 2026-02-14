@@ -38,6 +38,11 @@ class MyShipmentsView(ListAPIView):
     def get_queryset(self):
         """Get shipments where user is sender or traveler."""
         from django.db.models import Q
+        
+        # Handle swagger schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return Shipment.objects.none()
+        
         return Shipment.objects.select_related("sender", "traveler").prefetch_related(
             "items", "requests"
         ).filter(

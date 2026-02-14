@@ -23,6 +23,10 @@ class MyNotificationsView(ListAPIView):
 
     def get_queryset(self):
         """Get notifications for current user."""
+        # Handle swagger schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return Notification.objects.none()
+        
         queryset = Notification.objects.filter(user=self.request.user)
         
         # Filter by category if provided

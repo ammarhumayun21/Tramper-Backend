@@ -171,6 +171,10 @@ class MyTripsView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        # Handle swagger schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return Trip.objects.none()
+        
         return Trip.objects.select_related("capacity", "traveler").prefetch_related(
             "requests", "requests__shipment", "requests__shipment__items"
         ).filter(
