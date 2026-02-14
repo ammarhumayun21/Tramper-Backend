@@ -10,12 +10,21 @@ from .models import Request, CounterOffer
 from apps.shipments.serializers import ShipmentListSerializer
 from apps.trips.serializers import TripListSerializer
 
+class RequestUserSerializer(serializers.Serializer):
+    """Lightweight user serializer for request responses."""
+    id = serializers.UUIDField(read_only=True)
+    full_name = serializers.CharField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    profile_image_url = serializers.URLField(read_only=True, allow_null=True)
+    rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
 
 class CounterOfferSerializer(serializers.ModelSerializer):
     """Serializer for counter offers."""
 
     sender_id = serializers.UUIDField(source="sender.id", read_only=True)
     receiver_id = serializers.UUIDField(source="receiver.id", read_only=True)
+    sender_user = RequestUserSerializer(source="sender", read_only=True)
+    receiver_user = RequestUserSerializer(source="receiver", read_only=True)
 
     class Meta:
         model = CounterOffer
@@ -23,12 +32,14 @@ class CounterOfferSerializer(serializers.ModelSerializer):
             "id",
             "sender_id",
             "receiver_id",
+            "sender_user",
+            "receiver_user",
             "request",
             "price",
             "message",
             "created_at",
         ]
-        read_only_fields = ["id", "sender_id", "receiver_id", "request", "created_at"]
+        read_only_fields = ["id", "sender_id", "receiver_id", "sender_user", "receiver_user", "request", "created_at"]
 
 
 class CounterOfferCreateSerializer(serializers.ModelSerializer):
@@ -53,6 +64,8 @@ class RequestSerializer(serializers.ModelSerializer):
 
     sender_id = serializers.UUIDField(source="sender.id", read_only=True)
     receiver_id = serializers.UUIDField(source="receiver.id", read_only=True)
+    sender_user = RequestUserSerializer(source="sender", read_only=True)
+    receiver_user = RequestUserSerializer(source="receiver", read_only=True)
     shipment_id = serializers.UUIDField(source="shipment.id", read_only=True, allow_null=True)
     trip_id = serializers.UUIDField(source="trip.id", read_only=True, allow_null=True)
     counter_offers = CounterOfferSerializer(many=True, read_only=True)
@@ -68,6 +81,8 @@ class RequestSerializer(serializers.ModelSerializer):
             "id",
             "sender_id",
             "receiver_id",
+            "sender_user",
+            "receiver_user",
             "shipment_id",
             "shipment",
             "trip_id",
@@ -84,6 +99,8 @@ class RequestSerializer(serializers.ModelSerializer):
             "id",
             "sender_id",
             "receiver_id",
+            "sender_user",
+            "receiver_user",
             "shipment_id",
             "trip_id",
             "current_price",
@@ -97,6 +114,8 @@ class RequestListSerializer(serializers.ModelSerializer):
 
     sender_id = serializers.UUIDField(source="sender.id", read_only=True)
     receiver_id = serializers.UUIDField(source="receiver.id", read_only=True)
+    sender_user = RequestUserSerializer(source="sender", read_only=True)
+    receiver_user = RequestUserSerializer(source="receiver", read_only=True)
     shipment_id = serializers.UUIDField(source="shipment.id", read_only=True, allow_null=True)
     trip_id = serializers.UUIDField(source="trip.id", read_only=True, allow_null=True)
     current_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -108,6 +127,8 @@ class RequestListSerializer(serializers.ModelSerializer):
             "id",
             "sender_id",
             "receiver_id",
+            "sender_user",
+            "receiver_user",
             "shipment_id",
             "trip_id",
             "offered_price",

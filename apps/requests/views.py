@@ -27,40 +27,31 @@ from apps.notifications.services import notification_service
 
 class MyRequestsView(ListAPIView):
     """
-    List current user's requests (sent or received).
+    List requests created by the current user.
     """
     serializer_class = RequestListSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["status"]
 
     def get_queryset(self):
-        """Get requests where user is sender or receiver."""
+        """Get requests created by the current user (where user is sender)."""
         # Handle swagger schema generation
         if getattr(self, "swagger_fake_view", False):
             return Request.objects.none()
         
         user = self.request.user
-        request_type = self.request.query_params.get("type", "all")
         
         queryset = Request.objects.select_related(
             "sender", "receiver", "shipment", "trip"
-        ).prefetch_related("counter_offers")
-        
-        if request_type == "sent":
-            queryset = queryset.filter(sender=user)
-        elif request_type == "received":
-            queryset = queryset.filter(receiver=user)
-        else:
-            queryset = queryset.filter(Q(sender=user) | Q(receiver=user))
+        ).prefetch_related("counter_offers").filter(sender=user)
         
         return queryset.order_by("-created_at")
 
     @extend_schema(
         tags=["Requests"],
         summary="Get my requests",
-        description="Get all requests where current user is sender or receiver.",
+        description="Get all requests created by the current user.",
         parameters=[
-            OpenApiParameter("type", OpenApiTypes.STR, description="Filter: 'sent', 'received', or 'all' (default)"),
             OpenApiParameter("status", OpenApiTypes.STR, description="Filter by status"),
         ],
         responses={
