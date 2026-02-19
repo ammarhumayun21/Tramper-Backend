@@ -24,6 +24,7 @@ from .serializers import (
     MyShipmentListSerializer,
 )
 from .permissions import IsOwnerOrAdminOrReadOnly
+from .filters import ShipmentFilter
 from core.api import success_response
 
 
@@ -34,6 +35,23 @@ class MyShipmentsView(ListAPIView):
     """
     serializer_class = MyShipmentListSerializer
     permission_classes = [IsAuthenticated]
+    filterset_class = ShipmentFilter
+    search_fields = [
+        "name",
+        "notes",
+        "from_location__city",
+        "from_location__country",
+        "to_location__city",
+        "to_location__country",
+        "items__name",
+    ]
+    ordering_fields = [
+        "travel_date",
+        "reward",
+        "created_at",
+        "updated_at",
+        "status",
+    ]
 
     def get_queryset(self):
         """Get shipments where user is sender or traveler."""
@@ -52,7 +70,37 @@ class MyShipmentsView(ListAPIView):
     @extend_schema(
         tags=["Shipments"],
         summary="Get my shipments",
-        description="Get all shipments where the current user is sender or traveler. Includes is_accepted flag.",
+        description="Get all shipments where the current user is sender or traveler with comprehensive filtering.",
+        parameters=[
+            # Status filter
+            OpenApiParameter("status", OpenApiTypes.STR, description="Filter by status (pending, accepted, in_transit, delivered, cancelled)"),
+            # Name filter
+            OpenApiParameter("name", OpenApiTypes.STR, description="Filter by shipment name (partial match)"),
+            # Location filters
+            OpenApiParameter("from_location", OpenApiTypes.UUID, description="Filter by from location ID"),
+            OpenApiParameter("to_location", OpenApiTypes.UUID, description="Filter by to location ID"),
+            OpenApiParameter("from_city", OpenApiTypes.STR, description="Filter by from city (partial match)"),
+            OpenApiParameter("to_city", OpenApiTypes.STR, description="Filter by to city (partial match)"),
+            OpenApiParameter("from_country", OpenApiTypes.STR, description="Filter by from country (partial match)"),
+            OpenApiParameter("to_country", OpenApiTypes.STR, description="Filter by to country (partial match)"),
+            # Travel date filters
+            OpenApiParameter("travel_date", OpenApiTypes.DATE, description="Filter by exact travel date"),
+            OpenApiParameter("travel_date_from", OpenApiTypes.DATETIME, description="Filter by travel date (from)"),
+            OpenApiParameter("travel_date_to", OpenApiTypes.DATETIME, description="Filter by travel date (to)"),
+            # Reward filters
+            OpenApiParameter("reward_min", OpenApiTypes.NUMBER, description="Filter by minimum reward amount"),
+            OpenApiParameter("reward_max", OpenApiTypes.NUMBER, description="Filter by maximum reward amount"),
+            # Item filters
+            OpenApiParameter("has_items", OpenApiTypes.BOOL, description="Filter shipments that have items"),
+            OpenApiParameter("item_category", OpenApiTypes.UUID, description="Filter by item category ID"),
+            OpenApiParameter("item_category_name", OpenApiTypes.STR, description="Filter by item category name (partial match)"),
+            # Date range filters
+            OpenApiParameter("created_at_from", OpenApiTypes.DATETIME, description="Filter by created at (from)"),
+            OpenApiParameter("created_at_to", OpenApiTypes.DATETIME, description="Filter by created at (to)"),
+            # Search and ordering
+            OpenApiParameter("search", OpenApiTypes.STR, description="Search in name, notes, locations, and items"),
+            OpenApiParameter("ordering", OpenApiTypes.STR, description="Order by field (prefix with - for descending)"),
+        ],
         responses={
             200: OpenApiResponse(response=MyShipmentListSerializer(many=True), description="List of user's shipments"),
             401: OpenApiResponse(description="Not authenticated"),
@@ -71,9 +119,28 @@ class ShipmentListCreateView(ListAPIView):
     serializer_class = ShipmentListSerializer
     permission_classes = [IsOwnerOrAdminOrReadOnly]
     parser_classes = [NestedMultiPartParser, NestedFormParser, JSONParser]
-    filterset_fields = ["status", "sender", "traveler"]
-    search_fields = ["name", "from_location", "to_location"]
-    ordering_fields = ["travel_date", "reward", "created_at"]
+    filterset_class = ShipmentFilter
+    search_fields = [
+        "name",
+        "notes",
+        "from_location__city",
+        "from_location__country",
+        "to_location__city",
+        "to_location__country",
+        "sender__username",
+        "sender__full_name",
+        "traveler__username",
+        "traveler__full_name",
+        "items__name",
+    ]
+    ordering_fields = [
+        "travel_date",
+        "reward",
+        "created_at",
+        "updated_at",
+        "status",
+        "name",
+    ]
 
     def get_queryset(self):
         """Get all shipments excluding the current user's shipments."""
@@ -91,12 +158,45 @@ class ShipmentListCreateView(ListAPIView):
     @extend_schema(
         tags=["Shipments"],
         summary="List all shipments",
-        description="Get a list of all shipments with filtering and search capabilities.",
+        description="Get a list of all shipments with comprehensive filtering and search capabilities.",
         parameters=[
-            OpenApiParameter("status", OpenApiTypes.STR, description="Filter by status"),
+            # Status filter
+            OpenApiParameter("status", OpenApiTypes.STR, description="Filter by status (pending, accepted, in_transit, delivered, cancelled)"),
+            # User filters
             OpenApiParameter("sender", OpenApiTypes.UUID, description="Filter by sender ID"),
+            OpenApiParameter("sender_username", OpenApiTypes.STR, description="Filter by sender username (partial match)"),
             OpenApiParameter("traveler", OpenApiTypes.UUID, description="Filter by traveler ID"),
-            OpenApiParameter("search", OpenApiTypes.STR, description="Search in name and locations"),
+            OpenApiParameter("traveler_username", OpenApiTypes.STR, description="Filter by traveler username (partial match)"),
+            OpenApiParameter("has_traveler", OpenApiTypes.BOOL, description="Filter shipments that have a traveler assigned"),
+            # Name filter
+            OpenApiParameter("name", OpenApiTypes.STR, description="Filter by shipment name (partial match)"),
+            # Location filters
+            OpenApiParameter("from_location", OpenApiTypes.UUID, description="Filter by from location ID"),
+            OpenApiParameter("to_location", OpenApiTypes.UUID, description="Filter by to location ID"),
+            OpenApiParameter("from_city", OpenApiTypes.STR, description="Filter by from city (partial match)"),
+            OpenApiParameter("to_city", OpenApiTypes.STR, description="Filter by to city (partial match)"),
+            OpenApiParameter("from_country", OpenApiTypes.STR, description="Filter by from country (partial match)"),
+            OpenApiParameter("to_country", OpenApiTypes.STR, description="Filter by to country (partial match)"),
+            # Travel date filters
+            OpenApiParameter("travel_date", OpenApiTypes.DATE, description="Filter by exact travel date"),
+            OpenApiParameter("travel_date_from", OpenApiTypes.DATETIME, description="Filter by travel date (from)"),
+            OpenApiParameter("travel_date_to", OpenApiTypes.DATETIME, description="Filter by travel date (to)"),
+            # Reward filters
+            OpenApiParameter("reward", OpenApiTypes.NUMBER, description="Filter by exact reward amount"),
+            OpenApiParameter("reward_min", OpenApiTypes.NUMBER, description="Filter by minimum reward amount"),
+            OpenApiParameter("reward_max", OpenApiTypes.NUMBER, description="Filter by maximum reward amount"),
+            # Item filters
+            OpenApiParameter("has_items", OpenApiTypes.BOOL, description="Filter shipments that have items"),
+            OpenApiParameter("item_category", OpenApiTypes.UUID, description="Filter by item category ID"),
+            OpenApiParameter("item_category_name", OpenApiTypes.STR, description="Filter by item category name (partial match)"),
+            # Date range filters
+            OpenApiParameter("created_at_from", OpenApiTypes.DATETIME, description="Filter by created at (from)"),
+            OpenApiParameter("created_at_to", OpenApiTypes.DATETIME, description="Filter by created at (to)"),
+            OpenApiParameter("updated_at_from", OpenApiTypes.DATETIME, description="Filter by updated at (from)"),
+            OpenApiParameter("updated_at_to", OpenApiTypes.DATETIME, description="Filter by updated at (to)"),
+            # Search and ordering
+            OpenApiParameter("search", OpenApiTypes.STR, description="Search in name, notes, locations, usernames, and items"),
+            OpenApiParameter("ordering", OpenApiTypes.STR, description="Order by field (prefix with - for descending)"),
         ],
         responses={
             200: OpenApiResponse(response=ShipmentListSerializer(many=True), description="List of shipments"),

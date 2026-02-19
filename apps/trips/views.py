@@ -13,6 +13,7 @@ from drf_spectacular.types import OpenApiTypes
 from .models import Trip
 from .serializers import TripSerializer, TripListSerializer, MyTripListSerializer
 from .permissions import IsOwnerOrAdminOrReadOnly
+from .filters import TripFilter
 from core.api import success_response
 
 
@@ -24,9 +25,27 @@ class TripListCreateView(ListAPIView):
     """
     serializer_class = TripListSerializer
     permission_classes = [IsOwnerOrAdminOrReadOnly]
-    filterset_fields = ["status", "mode", "category"]
-    search_fields = ["from_location", "to_location", "first_name", "last_name"]
-    ordering_fields = ["departure_date", "departure_time", "created_at"]
+    filterset_class = TripFilter
+    search_fields = [
+        "first_name",
+        "last_name",
+        "from_location__city",
+        "from_location__country",
+        "to_location__city",
+        "to_location__country",
+        "traveler__username",
+        "traveler__full_name",
+        "notes",
+        "booking_reference",
+    ]
+    ordering_fields = [
+        "departure_date",
+        "departure_time",
+        "created_at",
+        "updated_at",
+        "capacity__total_weight",
+        "capacity__available_weight",
+    ]
 
     def get_queryset(self):
         """Get all trips excluding the current user's trips."""
@@ -41,12 +60,51 @@ class TripListCreateView(ListAPIView):
     @extend_schema(
         tags=["Trips"],
         summary="List all trips",
-        description="Get a list of all trips with filtering and search capabilities.",
+        description="Get a list of all trips with comprehensive filtering and search capabilities.",
         parameters=[
-            OpenApiParameter("status", OpenApiTypes.STR, description="Filter by status"),
-            OpenApiParameter("mode", OpenApiTypes.STR, description="Filter by mode of transport"),
-            OpenApiParameter("category", OpenApiTypes.STR, description="Filter by category"),
-            OpenApiParameter("search", OpenApiTypes.STR, description="Search in locations and names"),
+            # Status and mode filters
+            OpenApiParameter("status", OpenApiTypes.STR, description="Filter by status (valid, invalid)"),
+            OpenApiParameter("mode", OpenApiTypes.STR, description="Filter by mode of transport (trip, train, ship, bus)"),
+            OpenApiParameter("category", OpenApiTypes.STR, description="Filter by preferred category"),
+            # Traveler filters
+            OpenApiParameter("traveler", OpenApiTypes.UUID, description="Filter by traveler ID"),
+            OpenApiParameter("traveler_username", OpenApiTypes.STR, description="Filter by traveler username (partial match)"),
+            # Name filters
+            OpenApiParameter("first_name", OpenApiTypes.STR, description="Filter by first name (partial match)"),
+            OpenApiParameter("last_name", OpenApiTypes.STR, description="Filter by last name (partial match)"),
+            # Location filters
+            OpenApiParameter("from_location", OpenApiTypes.UUID, description="Filter by from location ID"),
+            OpenApiParameter("to_location", OpenApiTypes.UUID, description="Filter by to location ID"),
+            OpenApiParameter("from_city", OpenApiTypes.STR, description="Filter by from city (partial match)"),
+            OpenApiParameter("to_city", OpenApiTypes.STR, description="Filter by to city (partial match)"),
+            OpenApiParameter("from_country", OpenApiTypes.STR, description="Filter by from country (partial match)"),
+            OpenApiParameter("to_country", OpenApiTypes.STR, description="Filter by to country (partial match)"),
+            # Airline filters
+            OpenApiParameter("airline", OpenApiTypes.UUID, description="Filter by airline ID"),
+            OpenApiParameter("airline_name", OpenApiTypes.STR, description="Filter by airline name (partial match)"),
+            # Date filters
+            OpenApiParameter("departure_date", OpenApiTypes.DATE, description="Filter by exact departure date"),
+            OpenApiParameter("departure_date_from", OpenApiTypes.DATE, description="Filter by departure date (from)"),
+            OpenApiParameter("departure_date_to", OpenApiTypes.DATE, description="Filter by departure date (to)"),
+            OpenApiParameter("pickup_availability_start_date_from", OpenApiTypes.DATE, description="Filter by pickup start date (from)"),
+            OpenApiParameter("pickup_availability_start_date_to", OpenApiTypes.DATE, description="Filter by pickup start date (to)"),
+            OpenApiParameter("pickup_availability_end_date_from", OpenApiTypes.DATE, description="Filter by pickup end date (from)"),
+            OpenApiParameter("pickup_availability_end_date_to", OpenApiTypes.DATE, description="Filter by pickup end date (to)"),
+            # Capacity filters
+            OpenApiParameter("min_available_weight", OpenApiTypes.NUMBER, description="Filter trips with at least this available weight"),
+            OpenApiParameter("max_used_weight", OpenApiTypes.NUMBER, description="Filter by maximum used weight"),
+            OpenApiParameter("capacity_unit", OpenApiTypes.STR, description="Filter by capacity unit (e.g., kg, lbs)"),
+            # Booking reference
+            OpenApiParameter("booking_reference", OpenApiTypes.STR, description="Filter by booking reference (partial match)"),
+            # Date range filters
+            OpenApiParameter("created_at_from", OpenApiTypes.DATETIME, description="Filter by created at (from)"),
+            OpenApiParameter("created_at_to", OpenApiTypes.DATETIME, description="Filter by created at (to)"),
+            OpenApiParameter("updated_at_from", OpenApiTypes.DATETIME, description="Filter by updated at (from)"),
+            OpenApiParameter("updated_at_to", OpenApiTypes.DATETIME, description="Filter by updated at (to)"),
+            # Search
+            OpenApiParameter("search", OpenApiTypes.STR, description="Search in names, locations, notes, and booking reference"),
+            # Ordering
+            OpenApiParameter("ordering", OpenApiTypes.STR, description="Order by field (prefix with - for descending)"),
         ],
         responses={
             200: OpenApiResponse(response=TripListSerializer(many=True), description="List of trips"),
@@ -169,6 +227,24 @@ class MyTripsView(ListAPIView):
     """
     serializer_class = MyTripListSerializer
     permission_classes = [IsAuthenticated]
+    filterset_class = TripFilter
+    search_fields = [
+        "first_name",
+        "last_name",
+        "from_location__city",
+        "from_location__country",
+        "to_location__city",
+        "to_location__country",
+        "notes",
+        "booking_reference",
+    ]
+    ordering_fields = [
+        "departure_date",
+        "departure_time",
+        "created_at",
+        "updated_at",
+        "capacity__total_weight",
+    ]
 
     def get_queryset(self):
         # Handle swagger schema generation
@@ -184,7 +260,41 @@ class MyTripsView(ListAPIView):
     @extend_schema(
         tags=["Trips"],
         summary="Get my trips",
-        description="Get all trips created by the authenticated user with accepted requests and shipments.",
+        description="Get all trips created by the authenticated user with comprehensive filtering and search capabilities.",
+        parameters=[
+            # Status and mode filters
+            OpenApiParameter("status", OpenApiTypes.STR, description="Filter by status (valid, invalid)"),
+            OpenApiParameter("mode", OpenApiTypes.STR, description="Filter by mode of transport (trip, train, ship, bus)"),
+            OpenApiParameter("category", OpenApiTypes.STR, description="Filter by preferred category"),
+            # Name filters
+            OpenApiParameter("first_name", OpenApiTypes.STR, description="Filter by first name (partial match)"),
+            OpenApiParameter("last_name", OpenApiTypes.STR, description="Filter by last name (partial match)"),
+            # Location filters
+            OpenApiParameter("from_location", OpenApiTypes.UUID, description="Filter by from location ID"),
+            OpenApiParameter("to_location", OpenApiTypes.UUID, description="Filter by to location ID"),
+            OpenApiParameter("from_city", OpenApiTypes.STR, description="Filter by from city (partial match)"),
+            OpenApiParameter("to_city", OpenApiTypes.STR, description="Filter by to city (partial match)"),
+            OpenApiParameter("from_country", OpenApiTypes.STR, description="Filter by from country (partial match)"),
+            OpenApiParameter("to_country", OpenApiTypes.STR, description="Filter by to country (partial match)"),
+            # Airline filters
+            OpenApiParameter("airline", OpenApiTypes.UUID, description="Filter by airline ID"),
+            OpenApiParameter("airline_name", OpenApiTypes.STR, description="Filter by airline name (partial match)"),
+            # Date filters
+            OpenApiParameter("departure_date", OpenApiTypes.DATE, description="Filter by exact departure date"),
+            OpenApiParameter("departure_date_from", OpenApiTypes.DATE, description="Filter by departure date (from)"),
+            OpenApiParameter("departure_date_to", OpenApiTypes.DATE, description="Filter by departure date (to)"),
+            # Capacity filters
+            OpenApiParameter("min_available_weight", OpenApiTypes.NUMBER, description="Filter trips with at least this available weight"),
+            OpenApiParameter("capacity_unit", OpenApiTypes.STR, description="Filter by capacity unit (e.g., kg, lbs)"),
+            # Booking reference
+            OpenApiParameter("booking_reference", OpenApiTypes.STR, description="Filter by booking reference (partial match)"),
+            # Date range filters
+            OpenApiParameter("created_at_from", OpenApiTypes.DATETIME, description="Filter by created at (from)"),
+            OpenApiParameter("created_at_to", OpenApiTypes.DATETIME, description="Filter by created at (to)"),
+            # Search and ordering
+            OpenApiParameter("search", OpenApiTypes.STR, description="Search in names, locations, notes, and booking reference"),
+            OpenApiParameter("ordering", OpenApiTypes.STR, description="Order by field (prefix with - for descending)"),
+        ],
         responses={
             200: OpenApiResponse(response=MyTripListSerializer(many=True), description="User's trips with requests"),
             401: OpenApiResponse(description="Not authenticated"),
