@@ -11,7 +11,7 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
-from .models import User, UserSettings
+from .models import User, UserSettings, EmailVerificationToken
 from .serializers import (
     UserSerializer,
     UserListSerializer,
@@ -25,6 +25,7 @@ from .serializers import (
 from core.api import success_response
 from core.emails.welcome import send_welcome_email
 from core.emails.password_reset import send_password_reset_email
+from core.emails.email_verification import send_email_verification
 from core.storage import s3_storage
 from core.parsers import NestedMultiPartParser, NestedFormParser
 
@@ -65,6 +66,7 @@ class RegisterView(APIView):
 
         refresh = RefreshToken.for_user(user)
         send_welcome_email(user)
+        send_email_verification(user)
         return success_response(
             {
                 "user": UserSerializer(user).data,
@@ -244,6 +246,30 @@ class CurrentUserSettingsView(APIView):
         return success_response(serializer.data)
 
 
+class UserDetailView(APIView):
+    """Get a specific user's public profile by ID."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Users"],
+        summary="Get user by ID",
+        description="Get a specific user's public profile by their ID.",
+        responses={
+            200: OpenApiResponse(response=UserSerializer, description="User profile data."),
+            401: OpenApiResponse(description="Not authenticated."),
+            404: OpenApiResponse(description="User not found."),
+        },
+    )
+    def get(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("User not found.")
+        serializer = UserSerializer(user)
+        return success_response(serializer.data)
+
+
 class AllUsersView(ListAPIView):
     """
     List all users (superuser only).
@@ -264,3 +290,71 @@ class AllUsersView(ListAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
+
+class VerifyEmailView(APIView):
+    """Verify user email address via token."""
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Authentication"],
+        summary="Verify email address",
+        description="Verify user email address using the token sent via email.",
+        responses={
+            200: OpenApiResponse(description="Email verified successfully."),
+            400: OpenApiResponse(description="Invalid or expired token."),
+        },
+    )
+    def get(self, request):
+        from django.utils import timezone
+
+        token = request.query_params.get("token")
+        if not token:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"token": "Token is required."})
+
+        try:
+            verification_token = EmailVerificationToken.objects.get(
+                token=token,
+                is_used=False,
+                expires_at__gt=timezone.now(),
+            )
+        except EmailVerificationToken.DoesNotExist:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"token": "Invalid or expired verification token."})
+
+        # Mark token as used
+        verification_token.is_used = True
+        verification_token.save(update_fields=["is_used"])
+
+        # Set email as verified
+        user = verification_token.user
+        user.is_email_verified = True
+        user.save(update_fields=["is_email_verified"])
+
+        return success_response({"message": "Email verified successfully."})
+
+
+class ResendVerificationEmailView(APIView):
+    """Resend email verification link to the authenticated user."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Authentication"],
+        summary="Resend verification email",
+        description="Resend the email verification link to the currently authenticated user. Only works if email is not already verified.",
+        responses={
+            200: OpenApiResponse(description="Verification email sent."),
+            400: OpenApiResponse(description="Email already verified."),
+            401: OpenApiResponse(description="Not authenticated."),
+        },
+    )
+    def post(self, request):
+        user = request.user
+
+        if user.is_email_verified:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"detail": "Email is already verified."})
+
+        send_email_verification(user)
+        return success_response({"message": "Verification email has been sent."})

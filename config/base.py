@@ -46,6 +46,7 @@ LOCAL_APPS = [
     "apps.shipments.apps.ShipmentsConfig",
     "apps.requests.apps.RequestsConfig",
     "apps.notifications.apps.NotificationsConfig",
+    "apps.verification.apps.VerificationConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -249,6 +250,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "Requests", "description": "Request negotiations between users"},
         # {"name": "Counter Offers", "description": "Counter offers in request negotiations"},
         {"name": "Notifications", "description": "User notifications"},
+        {"name": "Verification Center", "description": "User identity verification and admin review"},
     ],
 }
 

@@ -168,6 +168,7 @@ class TripListSerializer(serializers.ModelSerializer):
     capacity = TripCapacitySerializer(read_only=True)
     traveler_id = serializers.UUIDField(source="traveler.id", read_only=True)
     is_accepted = serializers.SerializerMethodField()
+    completed_shipments_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Trip
@@ -189,6 +190,7 @@ class TripListSerializer(serializers.ModelSerializer):
             "pickup_availability_end_date",
             "meeting_points",
             "is_accepted",
+            "completed_shipments_count",
             "created_at",
         ]
         read_only_fields = fields
@@ -199,6 +201,16 @@ class TripListSerializer(serializers.ModelSerializer):
         if not obj.pk:
             return False
         return obj.requests.filter(status="accepted").exists()
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_completed_shipments_count(self, obj) -> int:
+        """Return the number of completed (delivered/received) shipments for this trip."""
+        if not obj.pk:
+            return 0
+        return obj.requests.filter(
+            status="accepted",
+            shipment__status__in=["delivered", "received"],
+        ).count()
 
     def to_representation(self, instance):
         """Return complete location and airline objects in response."""
@@ -220,6 +232,7 @@ class MyTripListSerializer(serializers.ModelSerializer):
     capacity = TripCapacitySerializer(read_only=True)
     traveler_id = serializers.UUIDField(source="traveler.id", read_only=True)
     is_accepted = serializers.SerializerMethodField()
+    completed_shipments_count = serializers.SerializerMethodField()
     requests = serializers.SerializerMethodField()
 
     class Meta:
@@ -242,6 +255,7 @@ class MyTripListSerializer(serializers.ModelSerializer):
             "pickup_availability_end_date",
             "meeting_points",
             "is_accepted",
+            "completed_shipments_count",
             "requests",
             "created_at",
         ]
@@ -253,6 +267,16 @@ class MyTripListSerializer(serializers.ModelSerializer):
         if not obj.pk:
             return False
         return obj.requests.filter(status="accepted").exists()
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_completed_shipments_count(self, obj) -> int:
+        """Return the number of completed (delivered/received) shipments for this trip."""
+        if not obj.pk:
+            return 0
+        return obj.requests.filter(
+            status="accepted",
+            shipment__status__in=["delivered", "received"],
+        ).count()
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_requests(self, obj) -> list:

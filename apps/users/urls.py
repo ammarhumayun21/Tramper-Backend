@@ -15,6 +15,9 @@ from .views import (
     CurrentUserView,
     CurrentUserSettingsView,
     AllUsersView,
+    UserDetailView,
+    VerifyEmailView,
+    ResendVerificationEmailView,
 )
 from core.api import success_response
 
@@ -35,6 +38,8 @@ class TokenRefreshViewWithSchema(TokenRefreshView):
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
+    path("verify-email/", VerifyEmailView.as_view(), name="verify_email"),
+    path("resend-verification-email/", ResendVerificationEmailView.as_view(), name="resend_verification_email"),
     path("token/refresh/", TokenRefreshViewWithSchema.as_view(), name="token_refresh"),
     path("password-reset/", PasswordResetView.as_view(), name="password_reset"),
     path(
@@ -45,4 +50,5 @@ urlpatterns = [
     path("me/", CurrentUserView.as_view(), name="current_user"),
     path("me/settings/", CurrentUserSettingsView.as_view(), name="current_user_settings"),
     path("users/", AllUsersView.as_view(), name="all_users"),
+    path("users/<uuid:pk>/", UserDetailView.as_view(), name="user_detail"),
 ]

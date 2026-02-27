@@ -133,6 +133,7 @@ class Shipment(models.Model):
         ("accepted", _("Accepted")),
         ("in_transit", _("In Transit")),
         ("delivered", _("Delivered")),
+        ("received", _("Received")),
         ("cancelled", _("Cancelled")),
     ]
 

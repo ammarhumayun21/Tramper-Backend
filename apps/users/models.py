@@ -137,6 +137,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name=_("staff status"),
     )
 
+    is_user_verified = models.BooleanField(
+        default=False,
+        verbose_name=_("user verified"),
+        help_text=_("Designates whether the user has been identity-verified by admin."),
+    )
+
     is_active = models.BooleanField(
         default=True,
         verbose_name=_("active"),
@@ -269,3 +275,48 @@ class UserSettings(models.Model):
 
     def __str__(self):
         return f"Settings for {self.user.email}"
+
+
+class EmailVerificationToken(models.Model):
+    """Token for email address verification."""
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="email_verification_tokens",
+        verbose_name=_("user"),
+    )
+
+    token = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name=_("token"),
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("created at"),
+    )
+
+    expires_at = models.DateTimeField(
+        verbose_name=_("expires at"),
+    )
+
+    is_used = models.BooleanField(
+        default=False,
+        verbose_name=_("is used"),
+    )
+
+    class Meta:
+        verbose_name = _("email verification token")
+        verbose_name_plural = _("email verification tokens")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Email verification token for {self.user.email}"

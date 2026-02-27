@@ -1,0 +1,14 @@
+Verify your email address - {{ site_name }}
+
+Hi {{ full_name }},
+
+Thanks for signing up for Tramper! Please verify your email address by clicking the link below:
+
+{{ verification_url }}
+
+This link will expire in {{ expiry_hours }} hours.
+
+If you didn't create an account on Tramper, you can safely ignore this email.
+
+---
+{{ site_name }}

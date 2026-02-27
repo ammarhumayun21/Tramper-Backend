@@ -54,7 +54,7 @@ class UserAdmin(BaseUserAdmin):
         ),
         (
             _("Verification"),
-            {"fields": ("is_email_verified", "is_phone_verified")},
+            {"fields": ("is_email_verified", "is_phone_verified", "is_user_verified")},
         ),
         (
             _("Statistics"),

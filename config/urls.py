@@ -29,6 +29,8 @@ urlpatterns = [
     path("api/v1/requests/", include("apps.requests.urls")),
     # API v1 - Notifications endpoints
     path("api/v1/notifications/", include("apps.notifications.urls")),
+    # API v1 - Verification Center endpoints
+    path("api/v1/verification/", include("apps.verification.urls")),
     # API v1 - Locations endpoints
     path("api/v1/locations/", include("core.urls")),
     # API v1 - Airlines endpoints
