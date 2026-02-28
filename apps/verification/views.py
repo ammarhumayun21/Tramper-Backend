@@ -14,6 +14,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .models import VerificationRequest
 from .serializers import (
     VerificationSubmitSerializer,
+    PhoneVerifySerializer,
     VerificationRequestSerializer,
     VerificationListSerializer,
     VerificationReviewSerializer,
@@ -25,7 +26,7 @@ from core.storage import s3_storage
 class VerificationSubmitView(APIView):
     """
     Submit verification documents.
-    Authenticated user uploads ID card images and selfie.
+    Authenticated user uploads ID card images, selfie, and ID card number.
     Accepts form-data with image files.
     """
     permission_classes = [IsAuthenticated]
@@ -35,7 +36,7 @@ class VerificationSubmitView(APIView):
         tags=["Verification Center"],
         summary="Submit verification documents",
         description=(
-            "Submit ID card front, back, selfie with ID, and phone number for identity verification. "
+            "Submit ID card front, back, selfie with ID, ID card number, and phone number for identity verification. "
             "Accepts multipart form-data. Images are uploaded to S3."
         ),
         request=VerificationSubmitSerializer,
@@ -49,28 +50,68 @@ class VerificationSubmitView(APIView):
         serializer = VerificationSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        id_card_number = serializer.validated_data["id_card_number"]
         id_card_front = serializer.validated_data["id_card_front"]
         id_card_back = serializer.validated_data["id_card_back"]
         selfie_with_id = serializer.validated_data["selfie_with_id"]
-        phone_number = serializer.validated_data["phone_number"]
+        phone_number = serializer.validated_data.get("phone_number")
 
         # Upload images to S3
         id_card_front_url = s3_storage.upload_image(id_card_front, folder="verification/id_front")
         id_card_back_url = s3_storage.upload_image(id_card_back, folder="verification/id_back")
         selfie_with_id_url = s3_storage.upload_image(selfie_with_id, folder="verification/selfie")
 
-        verification = VerificationRequest.objects.create(
+        # Create or update verification request
+        verification, created = VerificationRequest.objects.update_or_create(
             user=request.user,
-            id_card_front_url=id_card_front_url,
-            id_card_back_url=id_card_back_url,
-            selfie_with_id_url=selfie_with_id_url,
-            phone_number=phone_number,
+            defaults={
+                "id_card_number": id_card_number,
+                "id_card_front_url": id_card_front_url,
+                "id_card_back_url": id_card_back_url,
+                "selfie_with_id_url": selfie_with_id_url,
+                "phone_number": phone_number,
+                "status": "pending",  # Reset to pending on re-submission
+            }
         )
 
         return success_response(
             VerificationRequestSerializer(verification).data,
             status_code=status.HTTP_201_CREATED,
         )
+
+
+class PhoneVerifyView(APIView):
+    """
+    Submit phone number for verification.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Verification Center"],
+        summary="Submit phone number for verification",
+        description="Submit phone number to be verified by admin in the verification center.",
+        request=PhoneVerifySerializer,
+        responses={
+            200: OpenApiResponse(response=VerificationRequestSerializer, description="Phone number submitted."),
+            400: OpenApiResponse(description="Validation error."),
+            401: OpenApiResponse(description="Not authenticated."),
+        },
+    )
+    def post(self, request):
+        serializer = PhoneVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        phone_number = serializer.validated_data["phone_number"]
+
+        # Create or update verification request with phone number
+        verification, created = VerificationRequest.objects.update_or_create(
+            user=request.user,
+            defaults={
+                "phone_number": phone_number,
+            }
+        )
+
+        return success_response(VerificationRequestSerializer(verification).data)
 
     @extend_schema(
         tags=["Verification Center"],

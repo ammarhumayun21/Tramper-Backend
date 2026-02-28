@@ -35,20 +35,34 @@ class VerificationRequest(models.Model):
         verbose_name=_("user"),
     )
 
+    id_card_number = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name=_("ID card number"),
+        help_text=_("Number written on the ID card"),
+    )
+
     id_card_front_url = models.URLField(
         max_length=500,
+        null=True,
+        blank=True,
         verbose_name=_("ID card front image URL"),
         help_text=_("URL of uploaded front side of ID card"),
     )
 
     id_card_back_url = models.URLField(
         max_length=500,
+        null=True,
+        blank=True,
         verbose_name=_("ID card back image URL"),
         help_text=_("URL of uploaded back side of ID card"),
     )
 
     selfie_with_id_url = models.URLField(
         max_length=500,
+        null=True,
+        blank=True,
         verbose_name=_("selfie with ID image URL"),
         help_text=_("URL of uploaded selfie holding ID card"),
     )
@@ -56,6 +70,7 @@ class VerificationRequest(models.Model):
     phone_number = models.CharField(
         max_length=20,
         blank=True,
+        null=True,
         verbose_name=_("phone number"),
         help_text=_("Phone number submitted for verification"),
     )

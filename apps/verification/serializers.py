@@ -12,6 +12,12 @@ from apps.users.serializers import UserSerializer
 class VerificationSubmitSerializer(serializers.Serializer):
     """Serializer for user submitting verification documents (form-data)."""
 
+    id_card_number = serializers.CharField(
+        max_length=50,
+        required=True,
+        help_text=_("Number written on the ID card."),
+    )
+
     id_card_front = serializers.ImageField(
         required=True,
         help_text=_("Front side of ID card image."),
@@ -35,6 +41,16 @@ class VerificationSubmitSerializer(serializers.Serializer):
     )
 
 
+class PhoneVerifySerializer(serializers.Serializer):
+    """Serializer for submitting/verifying phone number."""
+
+    phone_number = serializers.CharField(
+        max_length=20,
+        required=True,
+        help_text=_("Phone number to verify."),
+    )
+
+
 class VerificationRequestSerializer(serializers.ModelSerializer):
     """Serializer for verification request details."""
 
@@ -45,6 +61,7 @@ class VerificationRequestSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "user",
+            "id_card_number",
             "id_card_front_url",
             "id_card_back_url",
             "selfie_with_id_url",
@@ -73,6 +90,7 @@ class VerificationListSerializer(serializers.ModelSerializer):
             "user_id",
             "user_email",
             "user_full_name",
+            "id_card_number",
             "phone_number",
             "status",
             "created_at",

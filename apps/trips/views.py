@@ -303,3 +303,55 @@ class MyTripsView(ListAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
+
+class MyDealsView(ListAPIView):
+    """
+    Get all trips where at least one request has been accepted.
+    Includes is_accepted flag and accepted requests with shipments.
+    """
+    serializer_class = MyTripListSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_class = TripFilter
+    search_fields = [
+        "first_name",
+        "last_name",
+        "from_location__city",
+        "from_location__country",
+        "to_location__city",
+        "to_location__country",
+        "notes",
+        "booking_reference",
+    ]
+    ordering_fields = [
+        "departure_date",
+        "departure_time",
+        "created_at",
+        "updated_at",
+        "capacity__total_weight",
+    ]
+
+    def get_queryset(self):
+        # Handle swagger schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return Trip.objects.none()
+        
+        # Filter for trips where user is traveler AND has at least one accepted request
+        return Trip.objects.select_related("capacity", "traveler").prefetch_related(
+            "requests", "requests__shipment", "requests__shipment__items"
+        ).filter(
+            traveler=self.request.user,
+            requests__status="accepted"
+        ).distinct().order_by("-created_at")
+
+    @extend_schema(
+        tags=["Trips"],
+        summary="Get my deals",
+        description="Get all trips created by the authenticated user that have at least one accepted request.",
+        responses={
+            200: OpenApiResponse(response=MyTripListSerializer(many=True), description="User's trips with accepted requests"),
+            401: OpenApiResponse(description="Not authenticated"),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
