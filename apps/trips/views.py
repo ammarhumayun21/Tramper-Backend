@@ -15,6 +15,8 @@ from .serializers import TripSerializer, TripListSerializer, MyTripListSerialize
 from .permissions import IsOwnerOrAdminOrReadOnly
 from .filters import TripFilter
 from core.api import success_response
+from apps.requests.models import Request
+from apps.requests.serializers import RequestSerializer
 
 
 class TripListCreateView(ListAPIView):
@@ -355,3 +357,44 @@ class MyDealsView(ListAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
+
+class TripAcceptedRequestsView(APIView):
+    """
+    Returns all accepted requests for a given trip.
+    Pass the trip ID and get back only the requests with status='accepted'.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Trips"],
+        summary="Get accepted requests for a trip",
+        description="Returns all requests with status 'accepted' for the specified trip.",
+        responses={
+            200: OpenApiResponse(response=RequestSerializer(many=True), description="List of accepted requests"),
+            404: OpenApiResponse(description="Trip not found"),
+        },
+    )
+    def get(self, request, trip_id):
+        # Verify the trip exists
+        if not Trip.objects.filter(pk=trip_id).exists():
+            return success_response(
+                {"message": "Trip not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        accepted_requests = (
+            Request.objects.filter(trip_id=trip_id, status="accepted")
+            .select_related("sender", "receiver", "shipment", "trip")
+            .prefetch_related(
+                "counter_offers",
+                "shipment__items",
+            )
+            .order_by("-created_at")
+        )
+
+        serializer = RequestSerializer(
+            accepted_requests,
+            many=True,
+            context={"request": request},
+        )
+        return success_response(serializer.data)
