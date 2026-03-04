@@ -128,3 +128,14 @@ def send_password_reset_email(user_email: str, reset_token: str) -> bool:
         text_content=f"{_('Click the link to reset your password')}: {reset_url}",
         html_content=f'<a href="{reset_url}">{_("Reset Password")}</a>',
     )
+
+
+def send_admin_otp_email(user_email: str, otp: str, user_name: str) -> bool:
+    """Send admin login OTP email."""
+    return EmailService.send_templated_email(
+        subject=str(_("Your Admin Login OTP code")),
+        recipient_list=[user_email],
+        text_template="emails/admin_otp.txt",
+        html_template="emails/admin_otp.html",
+        context={"otp": otp, "user_name": user_name},
+    )

@@ -16,7 +16,6 @@ from .serializers import (
     VerificationSubmitSerializer,
     PhoneVerifySerializer,
     VerificationRequestSerializer,
-    VerificationListSerializer,
     VerificationReviewSerializer,
 )
 from core.api import success_response
@@ -141,7 +140,7 @@ class AdminVerificationListView(ListAPIView):
     List all verification requests (admin only).
     """
     permission_classes = [IsAdminUser]
-    serializer_class = VerificationListSerializer
+    serializer_class = VerificationRequestSerializer
     queryset = VerificationRequest.objects.select_related("user").all().order_by("-created_at")
     search_fields = ["user__email", "user__username", "user__full_name", "phone_number"]
     filterset_fields = ["status"]
@@ -151,7 +150,7 @@ class AdminVerificationListView(ListAPIView):
         summary="List all verification requests (admin)",
         description="Get all verification requests. Admin only.",
         responses={
-            200: OpenApiResponse(response=VerificationListSerializer(many=True), description="List of verification requests."),
+            200: OpenApiResponse(response=VerificationRequestSerializer(many=True), description="List of verification requests."),
             401: OpenApiResponse(description="Not authenticated."),
             403: OpenApiResponse(description="Not authorized (admin only)."),
         },

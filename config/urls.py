@@ -35,6 +35,8 @@ urlpatterns = [
     path("api/v1/locations/", include("core.urls")),
     # API v1 - Airlines endpoints
     path("api/v1/airlines/", include(airline_urlpatterns)),
+    # API v1 - Admin Panel endpoints
+    path("api/v1/admin/", include("apps.admin_panel.urls")),
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

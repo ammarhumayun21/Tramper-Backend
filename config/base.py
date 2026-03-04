@@ -47,6 +47,7 @@ LOCAL_APPS = [
     "apps.requests.apps.RequestsConfig",
     "apps.notifications.apps.NotificationsConfig",
     "apps.verification.apps.VerificationConfig",
+    "apps.admin_panel.apps.AdminPanelConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -140,6 +141,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Authentication & Permissions
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.admin_panel.auth.CookieJWTAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -276,6 +278,7 @@ FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 # ============================================================================
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
+CORS_ALLOW_CREDENTIALS = True
 
 # ============================================================================
 # REDIS CONFIGURATION (optional, for caching/sessions)

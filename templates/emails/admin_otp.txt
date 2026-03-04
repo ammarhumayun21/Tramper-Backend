@@ -1,0 +1,14 @@
+Hello {{ user_name }},
+
+You requested to sign in to the Tramper Admin Panel. 
+
+Please use the following One-Time Password (OTP) to complete your login:
+
+{{ otp }}
+
+This code will expire in 5 minutes.
+
+If you did not attempt to sign in to the admin panel, please ignore this email.
+
+Best regards,
+The Tramper Team

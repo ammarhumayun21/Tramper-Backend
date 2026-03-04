@@ -89,6 +89,8 @@ class Trip(models.Model):
     STATUS_CHOICES = [
         ("valid", _("Valid")),
         ("invalid", _("Invalid")),
+        ("traveling", _("Traveling")),
+        ("completed", _("Completed")),
     ]
 
     CATEGORY_CHOICES = [
