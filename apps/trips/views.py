@@ -56,7 +56,7 @@ class TripListCreateView(ListAPIView):
 
     def get_queryset(self):
         """Get all trips excluding the current user's trips."""
-        queryset = Trip.objects.select_related("capacity", "traveler").all()
+        queryset = Trip.objects.select_related("capacity", "traveler", "category").all()
         
         # Exclude trips where user is the traveler
         if self.request.user.is_authenticated:
@@ -164,7 +164,7 @@ class TripDetailView(APIView):
     def get_object(self, pk):
         """Get trip by ID."""
         try:
-            trip = Trip.objects.select_related("capacity", "traveler").get(pk=pk)
+            trip = Trip.objects.select_related("capacity", "traveler", "category").get(pk=pk)
             self.check_object_permissions(self.request, trip)
             return trip
         except Trip.DoesNotExist:
@@ -282,7 +282,7 @@ class MyTripsView(ListAPIView):
         if getattr(self, "swagger_fake_view", False):
             return Trip.objects.none()
         
-        return Trip.objects.select_related("capacity", "traveler").prefetch_related(
+        return Trip.objects.select_related("capacity", "traveler", "category").prefetch_related(
             "requests", "requests__shipment", "requests__shipment__items"
         ).filter(
             traveler=self.request.user
@@ -367,7 +367,7 @@ class MyDealsView(ListAPIView):
             return Trip.objects.none()
         
         # Filter for trips where user is traveler AND has at least one accepted request
-        return Trip.objects.select_related("capacity", "traveler").prefetch_related(
+        return Trip.objects.select_related("capacity", "traveler", "category").prefetch_related(
             "requests", "requests__shipment", "requests__shipment__items"
         ).filter(
             traveler=self.request.user,

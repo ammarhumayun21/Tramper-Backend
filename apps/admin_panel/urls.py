@@ -26,6 +26,9 @@ from .views import (
     AdminShipmentsListView,
     AdminPaymentsListView,
     AdminTripUpdateStatusView,
+    AdminComplaintsListView,
+    AdminComplaintUpdateStatusView,
+    AdminComplaintSendEmailView,
 )
 
 urlpatterns = [
@@ -53,4 +56,8 @@ urlpatterns = [
     path("trips/<uuid:trip_id>/status/", AdminTripUpdateStatusView.as_view(), name="admin_trips_status"),
     path("shipments/", AdminShipmentsListView.as_view(), name="admin_shipments_list"),
     path("payments/", AdminPaymentsListView.as_view(), name="admin_payments_list"),
+    # Complaints
+    path("complaints/", AdminComplaintsListView.as_view(), name="admin_complaints_list"),
+    path("complaints/<uuid:complaint_id>/status/", AdminComplaintUpdateStatusView.as_view(), name="admin_complaint_update_status"),
+    path("complaints/<uuid:complaint_id>/send-email/", AdminComplaintSendEmailView.as_view(), name="admin_complaint_send_email"),
 ]

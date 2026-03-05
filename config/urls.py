@@ -35,6 +35,8 @@ urlpatterns = [
     path("api/v1/locations/", include("core.urls")),
     # API v1 - Airlines endpoints
     path("api/v1/airlines/", include(airline_urlpatterns)),
+    # API v1 - Complaints endpoints
+    path("api/v1/complaints/", include("apps.complaints.urls")),
     # API v1 - Admin Panel endpoints
     path("api/v1/admin/", include("apps.admin_panel.urls")),
     # API Documentation

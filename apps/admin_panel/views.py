@@ -29,6 +29,7 @@ from apps.users.models import User
 from apps.trips.models import Trip, TripCapacity
 from apps.shipments.models import Shipment, ShipmentItem
 from apps.requests.models import Request
+from apps.complaints.models import Complaint
 
 from .models import ActivityLog
 from .serializers import (
@@ -884,7 +885,7 @@ class AdminTripsListView(APIView):
 
         qs = Trip.objects.select_related(
             "traveler", "from_location", "to_location", "capacity", "airline"
-        ).order_by("-departure_date")
+        ).select_related("category").order_by("-departure_date")
 
         if search:
             qs = qs.filter(
@@ -940,7 +941,7 @@ class AdminTripsListView(APIView):
                 "ticketImage": trip.ticket_image or None,
                 "status": status_str,
                 "mode": trip.mode,
-                "category": trip.category or "",
+                "category": trip.category.name if trip.category else "",
                 "bookingReference": trip.booking_reference or "",
                 "transportDetails": trip.transport_details or "",
                 "notes": trip.notes or "",
@@ -1195,3 +1196,149 @@ class AdminPaymentsListView(APIView):
                 "completed_count": completed_count,
             },
         })
+
+
+# ============================================================================
+# COMPLAINTS VIEWS
+# ============================================================================
+
+
+class AdminComplaintsListView(APIView):
+    """List all complaints for admin panel with search, filter, and pagination."""
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        search = request.query_params.get("search", "").strip()
+        status_filter = request.query_params.get("status", "all")
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 10))
+
+        qs = Complaint.objects.select_related("user").order_by("-created_at")
+
+        if search:
+            qs = qs.filter(
+                Q(subject__icontains=search)
+                | Q(description__icontains=search)
+                | Q(user__full_name__icontains=search)
+                | Q(user__email__icontains=search)
+            )
+
+        if status_filter and status_filter != "all":
+            qs = qs.filter(status=status_filter)
+
+        total = qs.count()
+        start = (page - 1) * page_size
+        complaints = qs[start : start + page_size]
+
+        result = []
+        for c in complaints:
+            result.append({
+                "id": str(c.id),
+                "userName": c.user.full_name or c.user.username,
+                "userEmail": c.user.email,
+                "userAvatar": c.user.profile_image_url if hasattr(c.user, "profile_image_url") else None,
+                "subject": c.subject,
+                "description": c.description,
+                "status": c.status,
+                "adminResponse": c.admin_response,
+                "createdAt": c.created_at.strftime("%Y-%m-%d %H:%M"),
+                "updatedAt": c.updated_at.strftime("%Y-%m-%d %H:%M"),
+            })
+
+        return success_response({
+            "results": result,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
+        })
+
+
+class AdminComplaintUpdateStatusView(APIView):
+    """Update complaint status."""
+    permission_classes = [IsAdmin]
+
+    def patch(self, request, complaint_id):
+        try:
+            complaint = Complaint.objects.get(id=complaint_id)
+        except Complaint.DoesNotExist:
+            return success_response(
+                {"message": "Complaint not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        new_status = request.data.get("status")
+        valid_statuses = [c[0] for c in Complaint.STATUS_CHOICES]
+        if new_status not in valid_statuses:
+            return success_response(
+                {"message": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        complaint.status = new_status
+        admin_response = request.data.get("admin_response")
+        if admin_response is not None:
+            complaint.admin_response = admin_response
+        complaint.save()
+
+        return success_response({"message": "Complaint updated successfully"})
+
+
+class AdminComplaintSendEmailView(APIView):
+    """Send an email to the complaint user from admin."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, complaint_id):
+        try:
+            complaint = Complaint.objects.select_related("user").get(id=complaint_id)
+        except Complaint.DoesNotExist:
+            return success_response(
+                {"message": "Complaint not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        subject = request.data.get("subject", "")
+        message = request.data.get("message", "")
+
+        if not subject or not message:
+            return success_response(
+                {"message": "Subject and message are required"},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from django.core.mail import EmailMultiAlternatives
+        from django.conf import settings as django_settings
+
+        user_name = complaint.user.full_name or complaint.user.username
+        html_content = (
+            f"<p>Hello {user_name},</p>"
+            f"<p>{message}</p>"
+            f"<br/><p>Regarding your complaint: <strong>{complaint.subject}</strong></p>"
+            f"<br/><p>Best regards,<br/>Tramper Support Team</p>"
+        )
+        text_content = (
+            f"Hello {user_name},\n\n"
+            f"{message}\n\n"
+            f"Regarding your complaint: {complaint.subject}\n\n"
+            f"Best regards,\nTramper Support Team"
+        )
+
+        try:
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=django_settings.DEFAULT_FROM_EMAIL,
+                to=[complaint.user.email],
+            )
+            msg.attach_alternative(html_content, "text/html")
+            msg.send(fail_silently=False)
+            sent = True
+        except Exception:
+            sent = False
+
+        if sent:
+            return success_response({"message": "Email sent successfully"})
+        return success_response(
+            {"message": "Failed to send email"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

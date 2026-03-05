@@ -48,6 +48,7 @@ LOCAL_APPS = [
     "apps.notifications.apps.NotificationsConfig",
     "apps.verification.apps.VerificationConfig",
     "apps.admin_panel.apps.AdminPanelConfig",
+    "apps.complaints.apps.ComplaintsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

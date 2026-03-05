@@ -8,6 +8,7 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 from core.models import Location, Airline
+from apps.shipments.models import Category
 
 
 class TripCapacity(models.Model):
@@ -91,16 +92,6 @@ class Trip(models.Model):
         ("invalid", _("Invalid")),
         ("traveling", _("Traveling")),
         ("completed", _("Completed")),
-    ]
-
-    CATEGORY_CHOICES = [
-        ("documents", _("Documents")),
-        ("electronics", _("Electronics")),
-        ("clothing", _("Clothing")),
-        ("food", _("Food")),
-        ("medicine", _("Medicine")),
-        ("fragile", _("Fragile")),
-        ("other", _("Other")),
     ]
 
     id = models.UUIDField(
@@ -202,10 +193,12 @@ class Trip(models.Model):
         help_text=_("Additional details about the transport"),
     )
 
-    category = models.CharField(
-        max_length=50,
-        choices=CATEGORY_CHOICES,
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
+        related_name="trips",
         verbose_name=_("preferred category"),
         help_text=_("Preferred category of items to carry"),
     )

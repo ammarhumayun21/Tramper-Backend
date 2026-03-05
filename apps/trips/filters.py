@@ -25,9 +25,9 @@ class TripFilter(django_filters.FilterSet):
         choices=Trip.MODE_CHOICES,
         help_text=_("Filter by mode of transport"),
     )
-    category = django_filters.ChoiceFilter(
-        choices=Trip.CATEGORY_CHOICES,
-        help_text=_("Filter by preferred category"),
+    category = django_filters.UUIDFilter(
+        field_name="category__id",
+        help_text=_("Filter by category ID"),
     )
 
     # Traveler filters

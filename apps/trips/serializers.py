@@ -11,6 +11,8 @@ from core.serializers import LocationSerializer, AirlineSerializer
 from core.models import Location, Airline
 from core.storage import s3_storage
 from apps.users.models import User
+from apps.shipments.models import Category
+from apps.shipments.serializers import CategorySerializer
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
@@ -69,6 +71,11 @@ class TripSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Trip
@@ -117,6 +124,9 @@ class TripSerializer(serializers.ModelSerializer):
         # Replace airline UUID with full object
         if instance.airline:
             data['airline'] = AirlineSerializer(instance.airline).data
+        # Replace category UUID with full object
+        if instance.category:
+            data['category'] = CategorySerializer(instance.category).data
         return data
 
     def validate_departure_time(self, value):
@@ -221,6 +231,9 @@ class TripListSerializer(serializers.ModelSerializer):
         # Replace airline UUID with full object
         if instance.airline:
             data['airline'] = AirlineSerializer(instance.airline).data
+        # Replace category UUID with full object
+        if instance.category:
+            data['category'] = CategorySerializer(instance.category).data
         return data
 
 
@@ -313,4 +326,7 @@ class MyTripListSerializer(serializers.ModelSerializer):
         # Replace airline UUID with full object
         if instance.airline:
             data['airline'] = AirlineSerializer(instance.airline).data
+        # Replace category UUID with full object
+        if instance.category:
+            data['category'] = CategorySerializer(instance.category).data
         return data
