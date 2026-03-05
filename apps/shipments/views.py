@@ -54,9 +54,7 @@ class MyShipmentsView(ListAPIView):
     ]
 
     def get_queryset(self):
-        """Get shipments where user is sender or traveler."""
-        from django.db.models import Q
-        
+        """Get shipments created by the current user."""
         # Handle swagger schema generation
         if getattr(self, "swagger_fake_view", False):
             return Shipment.objects.none()
@@ -64,7 +62,7 @@ class MyShipmentsView(ListAPIView):
         return Shipment.objects.select_related("sender", "traveler").prefetch_related(
             "items", "requests"
         ).filter(
-            Q(sender=self.request.user) | Q(traveler=self.request.user)
+            sender=self.request.user
         ).order_by("-created_at")
 
     @extend_schema(
@@ -620,3 +618,34 @@ class CategoryListView(ListAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
+
+class ShipmentMarkReceivedView(APIView):
+    """
+    Mark a shipment as received.
+    POST: Any authenticated user can mark a shipment as received.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Shipments"],
+        summary="Mark shipment as received",
+        description="Mark a shipment as received by its ID. Requires authentication.",
+        responses={
+            200: OpenApiResponse(description="Shipment marked as received"),
+            404: OpenApiResponse(description="Shipment not found"),
+        },
+    )
+    def post(self, request, pk):
+        try:
+            shipment = Shipment.objects.get(pk=pk)
+        except Shipment.DoesNotExist:
+            return success_response(
+                {"message": "Shipment not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        shipment.status = "received"
+        shipment.save(update_fields=["status", "updated_at"])
+
+        return success_response({"message": "Shipment marked as received", "id": str(shipment.id), "status": "received"})

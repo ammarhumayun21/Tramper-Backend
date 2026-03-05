@@ -10,6 +10,7 @@ from .views import (
     ShipmentItemListCreateView,
     ShipmentItemDetailView,
     ShipmentItemImageDeleteView,
+    ShipmentMarkReceivedView,
     CategoryListView,
 )
 
@@ -25,6 +26,7 @@ urlpatterns = [
     # Shipment endpoints
     path("", ShipmentListCreateView.as_view(), name="shipment-list-create"),
     path("<uuid:pk>/", ShipmentDetailView.as_view(), name="shipment-detail"),
+    path("<uuid:pk>/received/", ShipmentMarkReceivedView.as_view(), name="shipment-mark-received"),
     
     # Shipment item endpoints
     path("<uuid:shipment_id>/items/", ShipmentItemListCreateView.as_view(), name="shipment-item-list-create"),
