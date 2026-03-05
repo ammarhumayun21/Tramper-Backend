@@ -64,8 +64,7 @@ class MyShipmentsView(ListAPIView):
         return Shipment.objects.select_related("sender", "traveler").prefetch_related(
             "items", "requests"
         ).filter(
-            Q(sender=self.request.user) | Q(traveler=self.request.user),
-            is_approved=True
+            Q(sender=self.request.user) | Q(traveler=self.request.user)
         ).order_by("-created_at")
 
     @extend_schema(

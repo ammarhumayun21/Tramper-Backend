@@ -7,14 +7,18 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import JSONParser
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
+
+from core.parsers import NestedMultiPartParser, NestedFormParser
 
 from .models import Trip
 from .serializers import TripSerializer, TripListSerializer, MyTripListSerializer
 from .permissions import IsOwnerOrAdminOrReadOnly
 from .filters import TripFilter
 from core.api import success_response
+from core.storage import s3_storage
 from apps.requests.models import Request
 from apps.requests.serializers import RequestSerializer
 
@@ -27,6 +31,7 @@ class TripListCreateView(ListAPIView):
     """
     serializer_class = TripListSerializer
     permission_classes = [IsOwnerOrAdminOrReadOnly]
+    parser_classes = [NestedMultiPartParser, NestedFormParser, JSONParser]
     filterset_class = TripFilter
     search_fields = [
         "first_name",
@@ -130,6 +135,17 @@ class TripListCreateView(ListAPIView):
         serializer = TripSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         trip = serializer.save(traveler=request.user)
+
+        # Handle ticket image upload to S3
+        ticket_file = request.FILES.get("ticket_image_file") or request.data.get("ticket_image_file")
+        if ticket_file and hasattr(ticket_file, "read"):
+            try:
+                url = s3_storage.upload_image(ticket_file, folder="trip_tickets")
+                trip.ticket_image = url
+                trip.save(update_fields=["ticket_image"])
+            except Exception as e:
+                print(f"Failed to upload ticket image: {str(e)}")
+
         return success_response(
             TripSerializer(trip).data,
             status_code=status.HTTP_201_CREATED,
@@ -197,7 +213,20 @@ class TripDetailView(APIView):
         serializer = TripSerializer(trip, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return success_response(serializer.data)
+
+        # Handle ticket image upload to S3
+        ticket_file = request.FILES.get("ticket_image_file") or request.data.get("ticket_image_file")
+        if ticket_file and hasattr(ticket_file, "read"):
+            try:
+                if trip.ticket_image:
+                    s3_storage.delete_image(trip.ticket_image)
+                url = s3_storage.upload_image(ticket_file, folder="trip_tickets")
+                trip.ticket_image = url
+                trip.save(update_fields=["ticket_image"])
+            except Exception as e:
+                print(f"Failed to upload ticket image: {str(e)}")
+
+        return success_response(TripSerializer(trip).data)
 
     @extend_schema(
         tags=["Trips"],
@@ -256,8 +285,7 @@ class MyTripsView(ListAPIView):
         return Trip.objects.select_related("capacity", "traveler").prefetch_related(
             "requests", "requests__shipment", "requests__shipment__items"
         ).filter(
-            traveler=self.request.user,
-            is_approved=True
+            traveler=self.request.user
         ).order_by("-created_at")
 
     @extend_schema(

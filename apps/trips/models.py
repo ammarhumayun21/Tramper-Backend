@@ -151,11 +151,12 @@ class Trip(models.Model):
         help_text=_("Designates whether the trip has been approved by admin."),
     )
 
-    ticket_image = models.ImageField(
-        upload_to="trip_tickets/",
+    ticket_image = models.CharField(
+        max_length=500,
         blank=True,
         null=True,
-        verbose_name=_("ticket image"),
+        verbose_name=_("ticket image URL"),
+        help_text=_("S3 URL of the ticket image"),
     )
 
     from_location = models.ForeignKey(

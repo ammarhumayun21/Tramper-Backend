@@ -883,7 +883,7 @@ class AdminTripsListView(APIView):
         page_size = int(request.query_params.get("page_size", 10))
 
         qs = Trip.objects.select_related(
-            "traveler", "from_location", "to_location", "capacity"
+            "traveler", "from_location", "to_location", "capacity", "airline"
         ).order_by("-departure_date")
 
         if search:
@@ -928,10 +928,26 @@ class AdminTripsListView(APIView):
                 "travelerAvatar": trip.traveler.profile_image_url if trip.traveler else None,
                 "from": trip.from_location.iata_code or trip.from_location.city,
                 "to": trip.to_location.iata_code or trip.to_location.city,
+                "fromCity": trip.from_location.city,
+                "fromCountry": trip.from_location.country if hasattr(trip.from_location, 'country') else "",
+                "toCity": trip.to_location.city,
+                "toCountry": trip.to_location.country if hasattr(trip.to_location, 'country') else "",
                 "date": trip.departure_date.strftime("%Y-%m-%d"),
+                "departureTime": trip.departure_time.strftime("%H:%M") if trip.departure_time else None,
                 "capacity": f"{cap.total_weight} {cap.unit}" if cap else "N/A",
-                "ticketImage": trip.ticket_image.url if trip.ticket_image else None,
+                "usedWeight": str(cap.used_weight) if cap else "0",
+                "availableWeight": str(cap.available_weight) if cap else "0",
+                "ticketImage": trip.ticket_image or None,
                 "status": status_str,
+                "mode": trip.mode,
+                "category": trip.category or "",
+                "bookingReference": trip.booking_reference or "",
+                "transportDetails": trip.transport_details or "",
+                "notes": trip.notes or "",
+                "airline": trip.airline.name if trip.airline else None,
+                "meetingPoints": trip.meeting_points or [],
+                "pickupStartDate": trip.pickup_availability_start_date.strftime("%Y-%m-%d") if trip.pickup_availability_start_date else None,
+                "pickupEndDate": trip.pickup_availability_end_date.strftime("%Y-%m-%d") if trip.pickup_availability_end_date else None,
             })
 
         return success_response({
@@ -999,8 +1015,8 @@ class AdminShipmentsListView(APIView):
         page_size = int(request.query_params.get("page_size", 10))
 
         qs = Shipment.objects.select_related(
-            "sender", "traveler", "to_location"
-        ).prefetch_related("items").order_by("-created_at")
+            "sender", "traveler", "from_location", "to_location"
+        ).prefetch_related("items", "items__category", "items__dimensions").order_by("-created_at")
 
         if search:
             qs = qs.filter(
@@ -1045,14 +1061,43 @@ class AdminShipmentsListView(APIView):
                 "id": str(s.id),
                 "senderName": s.sender.full_name or s.sender.username,
                 "senderAvatar": s.sender.profile_image_url if s.sender else None,
+                "name": s.name,
+                "notes": s.notes or "",
+                "fromCity": s.from_location.city if s.from_location else "Unknown",
+                "fromCountry": s.from_location.country if s.from_location else "",
                 "recipientCity": s.to_location.city if s.to_location else "Unknown",
+                "toCountry": s.to_location.country if s.to_location else "",
                 "matchedTraveler": (
                     s.traveler.full_name or s.traveler.username
                 ) if s.traveler else None,
                 "travelerAvatar": s.traveler.profile_image_url if s.traveler else None,
                 "status": status_str,
                 "createdDate": s.created_at.strftime("%Y-%m-%d"),
+                "travelDate": s.travel_date.strftime("%Y-%m-%d") if s.travel_date else None,
                 "parcelWeight": weight_str,
+                "reward": str(s.reward) if s.reward else "0",
+                "items": [
+                    {
+                        "id": str(item.id),
+                        "name": item.name,
+                        "link": item.link or "",
+                        "category": item.category.name if item.category else "",
+                        "quantity": item.quantity,
+                        "singleItemPrice": str(item.single_item_price),
+                        "singleItemWeight": str(item.single_item_weight),
+                        "weightUnit": item.weight_unit,
+                        "totalPrice": str(item.total_price),
+                        "totalWeight": str(item.total_weight),
+                        "imageUrls": item.image_urls or [],
+                        "dimensions": {
+                            "height": str(item.dimensions.height) if item.dimensions and item.dimensions.height else None,
+                            "width": str(item.dimensions.width) if item.dimensions and item.dimensions.width else None,
+                            "length": str(item.dimensions.length) if item.dimensions and item.dimensions.length else None,
+                            "unit": item.dimensions.unit if item.dimensions else None,
+                        } if item.dimensions else None,
+                    }
+                    for item in s.items.all()
+                ],
             })
 
         return success_response({

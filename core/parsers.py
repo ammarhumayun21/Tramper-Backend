@@ -95,9 +95,13 @@ class NestedMultiPartParser(MultiPartParser):
         # Combine data and files
         data = result.data.copy()
         
-        # Add files to data dict
+        # Add nested files (bracket notation) to data dict for parsing
+        # Keep top-level files in result.files so DRF fields can find them
         for key, value in result.files.items():
-            data[key] = value
+            if '[' in key:
+                data[key] = value
+            else:
+                data[key] = value
         
         # Parse nested structure
         parsed = parse_nested_data(data)

@@ -9,6 +9,7 @@ from drf_spectacular.types import OpenApiTypes
 from .models import Trip, TripCapacity
 from core.serializers import LocationSerializer, AirlineSerializer
 from core.models import Location, Airline
+from core.storage import s3_storage
 from apps.users.models import User
 
 
@@ -96,7 +97,7 @@ class TripSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "traveler_id", "traveler", "is_accepted", "created_at", "updated_at"]
+        read_only_fields = ["id", "traveler_id", "traveler", "is_accepted", "ticket_image", "created_at", "updated_at"]
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_accepted(self, obj) -> bool:
@@ -148,18 +149,16 @@ class TripSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update trip and capacity."""
         capacity_data = validated_data.pop("capacity", None)
-        
+
         if capacity_data:
-            # Update capacity
             for attr, value in capacity_data.items():
                 setattr(instance.capacity, attr, value)
             instance.capacity.save()
-        
-        # Update trip
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        
+
         return instance
 
 
