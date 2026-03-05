@@ -92,6 +92,7 @@ class TripSerializer(serializers.ModelSerializer):
             "pickup_availability_end_date",
             "meeting_points",
             "is_accepted",
+            "ticket_image",
             "created_at",
             "updated_at",
         ]
@@ -191,6 +192,7 @@ class TripListSerializer(serializers.ModelSerializer):
             "meeting_points",
             "is_accepted",
             "completed_shipments_count",
+            "ticket_image",
             "created_at",
         ]
         read_only_fields = fields
@@ -254,6 +256,7 @@ class MyTripListSerializer(serializers.ModelSerializer):
             "is_accepted",
             "completed_shipments_count",
             "requests",
+            "ticket_image",
             "created_at",
         ]
         read_only_fields = fields

@@ -17,6 +17,7 @@ from django.utils.timesince import timesince
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
@@ -46,6 +47,9 @@ from .serializers import (
     TopRoutesSerializer,
     WeeklyActivitySerializer,
     ActivityLogSerializer,
+    AdminProfileUpdateSerializer,
+    AdminChangePasswordSerializer,
+    AdminCreateSuperuserSerializer,
 )
 
 
@@ -213,6 +217,150 @@ class AdminMeView(APIView):
     )
     def get(self, request):
         return success_response(AdminUserSerializer(request.user).data)
+
+
+class AdminProfileUpdateView(APIView):
+    """
+    Update current admin user profile (name, phone, profile_image).
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @extend_schema(
+        tags=["Admin Auth"],
+        summary="Update admin profile",
+        description="Update current authenticated admin's full name, phone number, and profile image.",
+        request=AdminProfileUpdateSerializer,
+        responses={
+            200: OpenApiResponse(response=AdminUserSerializer, description="Profile updated"),
+            400: OpenApiResponse(description="Invalid data"),
+        },
+    )
+    def put(self, request):
+        serializer = AdminProfileUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        user.full_name = serializer.validated_data.get("full_name", user.full_name)
+        user.phone = serializer.validated_data.get("phone", user.phone)
+        
+        profile_image = serializer.validated_data.get('profile_image', None)
+        if profile_image:
+            try:
+                from core.storage import s3_storage
+                profile_image_url = s3_storage.upload_image(profile_image, folder="avatars")
+                user.profile_image_url = profile_image_url
+                user.save(update_fields=["full_name", "phone", "profile_image_url", "updated_at"])
+            except Exception as e:
+                print(f"Failed to upload admin profile image: {str(e)}")
+                user.save(update_fields=["full_name", "phone", "updated_at"])
+        else:
+            user.save(update_fields=["full_name", "phone", "updated_at"])
+        
+        return success_response({
+            "message": "Profile updated successfully.",
+            "user": AdminUserSerializer(user).data
+        })
+
+
+class AdminChangePasswordView(APIView):
+    """
+    Change current admin user password.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Admin Auth"],
+        summary="Change admin password",
+        description="Change password for the currently authenticated admin.",
+        request=AdminChangePasswordSerializer,
+        responses={
+            200: OpenApiResponse(description="Password changed successfully"),
+            400: OpenApiResponse(description="Invalid data or incorrect current password"),
+        },
+    )
+    def post(self, request):
+        serializer = AdminChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        current_password = serializer.validated_data["current_password"]
+        new_password = serializer.validated_data["new_password"]
+        
+        if not user.check_password(current_password):
+            return success_response(
+                {"message": "Incorrect current password."},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        user.set_password(new_password)
+        user.save(update_fields=["password", "updated_at"])
+        
+        return success_response({
+            "message": "Password changed successfully."
+        })
+
+
+class AdminCreateSuperuserView(APIView):
+    """
+    Create a new superuser from the admin panel.
+    Only accessible by existing superusers.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Admin Management"],
+        summary="Create new superuser",
+        description="Create a new admin user with is_staff and is_superuser set to True.",
+        request=AdminCreateSuperuserSerializer,
+        responses={
+            201: OpenApiResponse(response=AdminUserSerializer, description="Superuser created"),
+            400: OpenApiResponse(description="Invalid data or email already exists"),
+            403: OpenApiResponse(description="Permission denied. Must be a superuser."),
+        },
+    )
+    def post(self, request):
+        if not request.user.is_superuser:
+            return success_response(
+                {"message": "Permission denied. Only superusers can create new superusers."},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+            
+        serializer = AdminCreateSuperuserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data["email"]
+        if User.objects.filter(email=email).exists():
+            return success_response(
+                {"message": "User with this email already exists."},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        # Ensure a username is set, we can use email prefix or prompt for it
+        # Model requires username, using email is safe fallback
+        username = email.split('@')[0]
+        # Make sure username is unique
+        base_username = username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+            
+        user = User.objects.create_superuser(
+            email=email,
+            password=serializer.validated_data["password"],
+            username=username,
+            full_name=serializer.validated_data.get("full_name", ""),
+            phone=serializer.validated_data.get("phone", ""),
+        )
+        
+        return success_response(
+            {
+                "message": "Superuser created successfully.",
+                "user": AdminUserSerializer(user).data
+            },
+            status_code=status.HTTP_201_CREATED
+        )
 
 
 class AdminTokenRefreshView(APIView):
@@ -658,7 +806,7 @@ class AdminUsersListView(APIView):
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 10))
 
-        qs = User.objects.filter(is_staff=False).order_by("-created_at")
+        qs = User.objects.all().order_by("-created_at")
 
         if search:
             qs = qs.filter(
@@ -749,12 +897,13 @@ class AdminTripsListView(APIView):
 
         # Map frontend status names to backend status values
         if status_filter == "Approved":
-            qs = qs.filter(status="valid")
+            qs = qs.filter(is_approved=True, status="valid")
+        elif status_filter == "Pending Approval":
+            qs = qs.filter(is_approved=False, status="valid")
         elif status_filter == "Cancelled":
             qs = qs.filter(status="invalid")
-        elif status_filter != "all":
-            # Handle other statuses if needed
-            pass
+        elif status_filter == "Completed":
+            qs = qs.filter(status="completed")
 
         total = qs.count()
         start = (page - 1) * page_size
@@ -763,14 +912,26 @@ class AdminTripsListView(APIView):
         result = []
         for trip in trips:
             cap = trip.capacity
+            # Map status
+            if trip.status == "invalid":
+                status_str = "Cancelled"
+            elif trip.status == "completed":
+                status_str = "Completed"
+            elif not trip.is_approved:
+                status_str = "Pending Approval"
+            else:
+                status_str = "Approved"
+
             result.append({
                 "id": str(trip.id),
                 "travelerName": trip.traveler.full_name or trip.traveler.username,
+                "travelerAvatar": trip.traveler.profile_image_url if trip.traveler else None,
                 "from": trip.from_location.iata_code or trip.from_location.city,
                 "to": trip.to_location.iata_code or trip.to_location.city,
                 "date": trip.departure_date.strftime("%Y-%m-%d"),
                 "capacity": f"{cap.total_weight} {cap.unit}" if cap else "N/A",
-                "status": self.STATUS_MAP.get(trip.status, trip.status.title()),
+                "ticketImage": trip.ticket_image.url if trip.ticket_image else None,
+                "status": status_str,
             })
 
         return success_response({
@@ -780,6 +941,36 @@ class AdminTripsListView(APIView):
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size,
         })
+
+
+class AdminTripUpdateStatusView(APIView):
+    """Update trip status (approve/cancel)."""
+    permission_classes = [IsAdmin]
+
+    @extend_schema(
+        tags=["Admin Management"],
+        summary="Update trip status (admin approve/cancel)",
+    )
+    def patch(self, request, trip_id):
+        try:
+            trip = Trip.objects.get(id=trip_id)
+        except Trip.DoesNotExist:
+            return success_response(
+                {"message": "Trip not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        status_str = request.data.get("status")
+        if status_str == "Approved":
+            trip.is_approved = True
+            trip.status = "valid"
+            trip.save(update_fields=["is_approved", "status"])
+        elif status_str == "Cancelled":
+            trip.is_approved = False
+            trip.status = "invalid"
+            trip.save(update_fields=["is_approved", "status"])
+
+        return success_response({"id": str(trip.id), "status": status_str})
 
 
 class AdminShipmentsListView(APIView):
@@ -847,14 +1038,19 @@ class AdminShipmentsListView(APIView):
             )
             weight_str = f"{total_weight:.1f} kg" if total_weight else "N/A"
 
+            # Map status
+            status_str = self.STATUS_LABELS.get(s.status, s.status.title())
+
             result.append({
                 "id": str(s.id),
                 "senderName": s.sender.full_name or s.sender.username,
+                "senderAvatar": s.sender.profile_image_url if s.sender else None,
                 "recipientCity": s.to_location.city if s.to_location else "Unknown",
                 "matchedTraveler": (
                     s.traveler.full_name or s.traveler.username
                 ) if s.traveler else None,
-                "status": self.STATUS_LABELS.get(s.status, s.status.title()),
+                "travelerAvatar": s.traveler.profile_image_url if s.traveler else None,
+                "status": status_str,
                 "createdDate": s.created_at.strftime("%Y-%m-%d"),
                 "parcelWeight": weight_str,
             })
@@ -866,6 +1062,7 @@ class AdminShipmentsListView(APIView):
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size,
         })
+
 
 
 class AdminPaymentsListView(APIView):

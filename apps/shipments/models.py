@@ -178,6 +178,12 @@ class Shipment(models.Model):
         verbose_name=_("status"),
     )
 
+    is_approved = models.BooleanField(
+        default=False,
+        verbose_name=_("is approved"),
+        help_text=_("Designates whether the shipment has been approved by admin."),
+    )
+
     from_location = models.ForeignKey(
         Location,
         on_delete=models.PROTECT,

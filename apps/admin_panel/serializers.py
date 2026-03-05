@@ -71,12 +71,37 @@ class AdminUserSerializer(serializers.ModelSerializer):
             "full_name",
             "username",
             "email",
+            "phone",
             "profile_image_url",
             "is_staff",
             "is_superuser",
+            "created_at",
+            "last_login",
         ]
 
 
+class AdminProfileUpdateSerializer(serializers.Serializer):
+    """Serializer for updating admin profile."""
+
+    full_name = serializers.CharField(required=True, max_length=255)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    profile_image = serializers.ImageField(required=False, write_only=True)
+
+
+class AdminChangePasswordSerializer(serializers.Serializer):
+    """Serializer for changing admin password."""
+
+    current_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+
+
+class AdminCreateSuperuserSerializer(serializers.Serializer):
+    """Serializer for creating a new superuser from preferences."""
+
+    full_name = serializers.CharField(required=True, max_length=255)
+    email = serializers.EmailField(required=True)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=20)
+    password = serializers.CharField(required=True, min_length=8)
 class DashboardMetricsSerializer(serializers.Serializer):
     """Serializer for dashboard metrics cards."""
 
@@ -152,10 +177,11 @@ class AdminUserListSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     joinedDate = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
+    avatar = serializers.CharField(source='profile_image_url', default='')
 
     class Meta:
         model = User
-        fields = ["id", "name", "email", "phone", "role", "joinedDate", "status"]
+        fields = ["id", "name", "email", "phone", "role", "joinedDate", "status", "avatar"]
 
     def get_name(self, obj):
         return obj.full_name or obj.username

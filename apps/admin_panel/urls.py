@@ -10,6 +10,9 @@ from .views import (
     AdminMeView,
     AdminTokenRefreshView,
     AdminVerifyOTPView,
+    AdminProfileUpdateView,
+    AdminChangePasswordView,
+    AdminCreateSuperuserView,
     DashboardMetricsView,
     TripsShipmentsOverTimeView,
     RevenueByMonthView,
@@ -22,6 +25,7 @@ from .views import (
     AdminTripsListView,
     AdminShipmentsListView,
     AdminPaymentsListView,
+    AdminTripUpdateStatusView,
 )
 
 urlpatterns = [
@@ -30,6 +34,8 @@ urlpatterns = [
     path("auth/verify-otp/", AdminVerifyOTPView.as_view(), name="admin_verify_otp"),
     path("auth/logout/", AdminLogoutView.as_view(), name="admin_logout"),
     path("auth/me/", AdminMeView.as_view(), name="admin_me"),
+    path("auth/profile/", AdminProfileUpdateView.as_view(), name="admin_profile_update"),
+    path("auth/change-password/", AdminChangePasswordView.as_view(), name="admin_change_password"),
     path("auth/refresh/", AdminTokenRefreshView.as_view(), name="admin_token_refresh"),
     # Dashboard
     path("dashboard/metrics/", DashboardMetricsView.as_view(), name="dashboard_metrics"),
@@ -41,8 +47,10 @@ urlpatterns = [
     path("dashboard/weekly-activity/", WeeklyActivityView.as_view(), name="weekly_activity"),
     # Lists
     path("users/", AdminUsersListView.as_view(), name="admin_users_list"),
+    path("users/superuser/", AdminCreateSuperuserView.as_view(), name="admin_create_superuser"),
     path("users/<uuid:user_id>/toggle-status/", AdminUserToggleStatusView.as_view(), name="admin_user_toggle_status"),
     path("trips/", AdminTripsListView.as_view(), name="admin_trips_list"),
+    path("trips/<uuid:trip_id>/status/", AdminTripUpdateStatusView.as_view(), name="admin_trips_status"),
     path("shipments/", AdminShipmentsListView.as_view(), name="admin_shipments_list"),
     path("payments/", AdminPaymentsListView.as_view(), name="admin_payments_list"),
 ]

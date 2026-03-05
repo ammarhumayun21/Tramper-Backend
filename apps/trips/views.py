@@ -57,7 +57,7 @@ class TripListCreateView(ListAPIView):
         if self.request.user.is_authenticated:
             queryset = queryset.exclude(traveler=self.request.user)
         
-        return queryset.order_by("-created_at")
+        return queryset.filter(is_approved=True).order_by("-created_at")
 
     @extend_schema(
         tags=["Trips"],
@@ -256,7 +256,8 @@ class MyTripsView(ListAPIView):
         return Trip.objects.select_related("capacity", "traveler").prefetch_related(
             "requests", "requests__shipment", "requests__shipment__items"
         ).filter(
-            traveler=self.request.user
+            traveler=self.request.user,
+            is_approved=True
         ).order_by("-created_at")
 
     @extend_schema(

@@ -145,6 +145,19 @@ class Trip(models.Model):
         verbose_name=_("status"),
     )
 
+    is_approved = models.BooleanField(
+        default=False,
+        verbose_name=_("is approved"),
+        help_text=_("Designates whether the trip has been approved by admin."),
+    )
+
+    ticket_image = models.ImageField(
+        upload_to="trip_tickets/",
+        blank=True,
+        null=True,
+        verbose_name=_("ticket image"),
+    )
+
     from_location = models.ForeignKey(
         Location,
         on_delete=models.PROTECT,
