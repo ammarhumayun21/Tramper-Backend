@@ -50,7 +50,17 @@ class ChatRoomListView(ListAPIView):
         )
         queryset = (
             ChatRoom.objects.filter(Q(sender=user) | Q(receiver=user))
-            .select_related("sender", "receiver", "request")
+            .select_related(
+                "sender",
+                "receiver",
+                "request",
+                "request__shipment",
+                "request__shipment__from_location",
+                "request__shipment__to_location",
+                "request__trip",
+                "request__trip__from_location",
+                "request__trip__to_location",
+            )
             .prefetch_related(
                 Prefetch(
                     "messages",

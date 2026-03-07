@@ -9,6 +9,44 @@ from .models import ChatRoom, Message
 from core.storage import s3_storage
 
 
+class ChatLocationSerializer(serializers.Serializer):
+    """Lightweight location serializer for chatroom context."""
+
+    city = serializers.CharField(read_only=True)
+    country = serializers.CharField(read_only=True)
+    iata_code = serializers.CharField(read_only=True)
+
+
+class ChatShipmentSerializer(serializers.Serializer):
+    """Lightweight shipment serializer for chatroom context."""
+
+    id = serializers.UUIDField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    from_location = ChatLocationSerializer(read_only=True)
+    to_location = ChatLocationSerializer(read_only=True)
+
+
+class ChatTripSerializer(serializers.Serializer):
+    """Lightweight trip serializer for chatroom context."""
+
+    id = serializers.UUIDField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    departure_date = serializers.DateField(read_only=True)
+    from_location = ChatLocationSerializer(read_only=True)
+    to_location = ChatLocationSerializer(read_only=True)
+
+
+class ChatRequestSerializer(serializers.Serializer):
+    """Lightweight request serializer for chatroom context."""
+
+    id = serializers.UUIDField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    offered_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    shipment = ChatShipmentSerializer(read_only=True)
+    trip = ChatTripSerializer(read_only=True)
+
+
 class ChatUserSerializer(serializers.Serializer):
     """Lightweight user serializer for chatroom responses."""
 
@@ -125,6 +163,7 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
     sender = ChatUserSerializer(read_only=True)
     receiver = ChatUserSerializer(read_only=True)
     request_id = serializers.UUIDField(source="request.id", read_only=True)
+    request_detail = ChatRequestSerializer(source="request", read_only=True)
     last_message = serializers.SerializerMethodField()
 
     class Meta:
@@ -134,6 +173,7 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
             "sender",
             "receiver",
             "request_id",
+            "request_detail",
             "is_active",
             "created_at",
             "disabled_at",
