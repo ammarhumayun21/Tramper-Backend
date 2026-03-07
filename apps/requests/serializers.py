@@ -197,6 +197,10 @@ class RequestCreateSerializer(serializers.ModelSerializer):
             from apps.trips.models import Trip
             try:
                 trip = Trip.objects.get(pk=trip_id)
+                if not trip.is_approved:
+                    raise serializers.ValidationError(
+                        {"trip_id": _("This trip is not yet approved by the admin. Please contact support or wait for approval.")}
+                    )
                 attrs["trip"] = trip
             except Trip.DoesNotExist:
                 raise serializers.ValidationError(
