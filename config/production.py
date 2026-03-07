@@ -122,6 +122,19 @@ if REDIS_URL:
     }
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     SESSION_CACHE_ALIAS = "default"
+
+    # Channel Layers - override base config with SSL fix for Heroku Redis
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [{
+                    "address": REDIS_URL,
+                    "ssl_cert_reqs": None,
+                }],
+            },
+        },
+    }
 else:
     # Fallback to database cache if Redis not configured
     CACHES = {
