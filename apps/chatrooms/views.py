@@ -21,7 +21,9 @@ from .serializers import (
     MessageCreateSerializer,
 )
 from .permissions import IsChatParticipant
+from .services import disable_chatroom
 from core.api import success_response
+from core.permissions import IsAdmin
 
 
 class ChatRoomListView(ListAPIView):
@@ -206,3 +208,43 @@ class SendMessageView(APIView):
             message_data,
             status_code=status.HTTP_201_CREATED,
         )
+
+
+class DisableChatRoomView(APIView):
+    """
+    Disable a chatroom. Admin only.
+    POST /api/v1/chatrooms/<uuid:pk>/disable/
+    """
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    @extend_schema(
+        tags=["Chatrooms"],
+        summary="Disable a chatroom",
+        description="Disable a chatroom so no more messages can be sent. Admin only.",
+        responses={
+            200: OpenApiResponse(
+                response=ChatRoomSerializer, description="Chatroom disabled"
+            ),
+            401: OpenApiResponse(description="Not authenticated"),
+            403: OpenApiResponse(description="Not an admin"),
+            404: OpenApiResponse(description="Chatroom not found"),
+        },
+    )
+    def post(self, request, pk):
+        try:
+            chatroom = ChatRoom.objects.select_related("sender", "receiver").get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            return success_response(
+                {"message": "Chatroom not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not chatroom.is_active:
+            return success_response(
+                {"message": "Chatroom is already disabled."},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        disable_chatroom(chatroom)
+        return success_response(ChatRoomSerializer(chatroom).data)
