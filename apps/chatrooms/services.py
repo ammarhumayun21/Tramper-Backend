@@ -22,7 +22,7 @@ def create_chatroom(request_obj):
     )
     return chatroom, created
 
- 
+  
 def disable_chatroom(chatroom):
     """Disable a chatroom and set the disabled timestamp."""
     chatroom.is_active = False
