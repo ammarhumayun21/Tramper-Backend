@@ -28,6 +28,7 @@ class ActivityLog(models.Model):
         ("request", _("Request")),
         ("user", _("User")),
         ("verification", _("Verification")),
+        ("chatroom", _("Chatroom")),
     ]
 
     id = models.UUIDField(

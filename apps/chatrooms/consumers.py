@@ -38,11 +38,13 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4404)
             return
 
-        if not await self.is_participant():
+        # Allow admin/staff to monitor without being a participant
+        self.is_admin = await self.check_is_staff()
+        if not self.is_admin and not await self.is_participant():
             await self.close(code=4403)
             return
 
-        if not self.chatroom.is_active:
+        if not self.is_admin and not self.chatroom.is_active:
             await self.close(code=4403)
             return
 
@@ -58,6 +60,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         """Handle incoming WebSocket messages."""
+        # Admin monitors are read-only
+        if getattr(self, "is_admin", False):
+            await self.send_json({"error": "Admin monitoring mode — sending messages is disabled."})
+            return
+
         # Re-check chatroom is still active
         is_active = await self.check_chatroom_active()
         if not is_active:
@@ -123,6 +130,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def is_participant(self):
         return self.chatroom.has_participant(self.user)
+
+    @database_sync_to_async
+    def check_is_staff(self):
+        return self.user.is_staff
 
     @database_sync_to_async
     def check_chatroom_active(self):

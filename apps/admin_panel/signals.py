@@ -11,6 +11,7 @@ from apps.shipments.models import Shipment
 from apps.requests.models import Request
 from apps.users.models import User
 from apps.verification.models import VerificationRequest
+from apps.chatrooms.models import ChatRoom
 from .models import ActivityLog
 
 
@@ -41,6 +42,7 @@ pre_save.connect(_cache_old_instance, sender=Shipment)
 pre_save.connect(_cache_old_instance, sender=Request)
 pre_save.connect(_cache_old_instance, sender=User)
 pre_save.connect(_cache_old_instance, sender=VerificationRequest)
+pre_save.connect(_cache_old_instance, sender=ChatRoom)
 
 
 # ============================================================================
@@ -289,3 +291,37 @@ def log_verification_delete(sender, instance, **kwargs):
         entity_id=instance.pk,
         description=f"Verification request for {instance.user} was deleted",
     )
+
+
+# ============================================================================
+# CHATROOM SIGNALS
+# ============================================================================
+
+@receiver(post_save, sender=ChatRoom)
+def log_chatroom_activity(sender, instance, created, **kwargs):
+    """Log chatroom creation and disable events."""
+    chatroom = instance
+    sender_name = str(chatroom.sender) if chatroom.sender_id else "Unknown"
+    receiver_name = str(chatroom.receiver) if chatroom.receiver_id else "Unknown"
+
+    if created or getattr(instance, "_is_new", False):
+        ActivityLog.objects.create(
+            actor=None,
+            action="created",
+            entity_type="chatroom",
+            entity_id=chatroom.pk,
+            description=f"Chatroom created between {sender_name} and {receiver_name}",
+            metadata={"is_active": chatroom.is_active},
+        )
+    else:
+        old_is_active = getattr(instance, "_old_is_active", None)
+        if old_is_active is not None and old_is_active != chatroom.is_active:
+            if not chatroom.is_active:
+                ActivityLog.objects.create(
+                    actor=None,
+                    action="status_changed",
+                    entity_type="chatroom",
+                    entity_id=chatroom.pk,
+                    description=f"Chatroom between {sender_name} and {receiver_name} was disabled",
+                    metadata={"old_is_active": old_is_active, "new_is_active": chatroom.is_active},
+                )
