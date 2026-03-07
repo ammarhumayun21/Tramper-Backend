@@ -35,6 +35,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "file",
             "created_at",
             "is_deleted",
+            "is_seen",
         ]
         read_only_fields = fields
 
@@ -152,8 +153,4 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
         return None
 
 
-class UnreadCountSerializer(serializers.Serializer):
-    """Serializer for unread message counts per chatroom."""
 
-    chatroom_id = serializers.UUIDField()
-    unread_count = serializers.IntegerField()
