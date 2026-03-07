@@ -314,6 +314,7 @@ class ShipmentCreateSerializer(serializers.ModelSerializer):
     items = ShipmentItemSerializer(many=True)
     from_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
     to_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all())
+    reward = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Shipment
@@ -331,7 +332,8 @@ class ShipmentCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create shipment with items."""
         items_data = validated_data.pop("items")
-        shipment = Shipment.objects.create(**validated_data)
+        validated_data.pop("reward", None)
+        shipment = Shipment.objects.create(**validated_data, reward=0)
         
         # Create items
         for item_data in items_data:
@@ -360,6 +362,9 @@ class ShipmentCreateSerializer(serializers.ModelSerializer):
                     item.image_urls = image_urls
                     item.save(update_fields=['image_urls'])
         
+        # Auto-calculate reward from items
+        shipment.calculate_reward()
+        
         return shipment
 
 
@@ -369,6 +374,7 @@ class ShipmentUpdateSerializer(serializers.ModelSerializer):
     items = ShipmentItemSerializer(many=True, required=False)
     from_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all(), required=False)
     to_location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.all(), required=False)
+    reward = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Shipment
@@ -390,6 +396,7 @@ class ShipmentUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update shipment and its items."""
         items_data = validated_data.pop("items", None)
+        validated_data.pop("reward", None)
         
         # Update shipment fields
         for attr, value in validated_data.items():
@@ -545,6 +552,10 @@ class ShipmentUpdateSerializer(serializers.ModelSerializer):
                             if image_urls:
                                 item.image_urls = image_urls
                                 item.save(update_fields=['image_urls'])
+        
+        # Recalculate reward from items
+        if items_data is not None:
+            instance.calculate_reward()
         
         return instance
 

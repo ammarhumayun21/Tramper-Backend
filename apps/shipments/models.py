@@ -228,6 +228,13 @@ class Shipment(models.Model):
     def __str__(self):
         return f"{self.name} - {self.from_location} → {self.to_location}"
 
+    def calculate_reward(self):
+        """Calculate reward as sum of (single_item_price * quantity) for all items."""
+        total = sum(item.single_item_price * item.quantity for item in self.items.all())
+        self.reward = total
+        self.save(update_fields=["reward"])
+        return self.reward
+
 
 class ShipmentItem(models.Model):
     """
