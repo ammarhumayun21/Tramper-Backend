@@ -1095,6 +1095,7 @@ class AdminTripsListView(APIView):
                 "meetingPoints": trip.meeting_points or [],
                 "pickupStartDate": trip.pickup_availability_start_date.strftime("%Y-%m-%d") if trip.pickup_availability_start_date else None,
                 "pickupEndDate": trip.pickup_availability_end_date.strftime("%Y-%m-%d") if trip.pickup_availability_end_date else None,
+                "hasRequests": trip.requests.exists(),
             })
 
         return success_response({
@@ -1124,6 +1125,11 @@ class AdminTripUpdateStatusView(APIView):
             )
 
         status_str = request.data.get("status")
+        if status_str == "Cancelled" and trip.requests.exists():
+            return success_response(
+                {"message": "Cannot cancel a trip that has associated requests or shipments."},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
         if status_str == "Approved":
             trip.is_approved = True
             trip.status = "valid"
