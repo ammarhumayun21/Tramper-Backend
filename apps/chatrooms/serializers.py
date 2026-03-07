@@ -150,3 +150,10 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
         if message:
             return LastMessageSerializer(message).data
         return None
+
+
+class UnreadCountSerializer(serializers.Serializer):
+    """Serializer for unread message counts per chatroom."""
+
+    chatroom_id = serializers.UUIDField()
+    unread_count = serializers.IntegerField()

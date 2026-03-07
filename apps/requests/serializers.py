@@ -243,11 +243,18 @@ class RequestUpdateSerializer(serializers.ModelSerializer):
         instance = self.instance
         user = self.context["request"].user
         
-        # Only receiver can accept/reject/counter
-        if value in ["accepted", "rejected", "countered"]:
+        # Both sender and receiver can accept/reject
+        if value in ["accepted", "rejected"]:
+            if instance.sender != user and instance.receiver != user:
+                raise serializers.ValidationError(
+                    _("Only participants can accept or reject a request.")
+                )
+
+        # Only receiver can counter
+        if value == "countered":
             if instance.receiver != user:
                 raise serializers.ValidationError(
-                    _("Only the receiver can accept, reject, or counter a request.")
+                    _("Only the receiver can counter a request.")
                 )
         
         # Only sender can cancel

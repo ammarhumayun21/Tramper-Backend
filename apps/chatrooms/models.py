@@ -142,6 +142,12 @@ class Message(models.Model):
         verbose_name=_("is deleted"),
     )
 
+    is_seen = models.BooleanField(
+        default=False,
+        verbose_name=_("is seen"),
+        help_text=_("Whether the message has been seen by the other participant."),
+    )
+
     class Meta:
         verbose_name = _("message")
         verbose_name_plural = _("messages")
@@ -149,6 +155,7 @@ class Message(models.Model):
         indexes = [
             models.Index(fields=["chatroom", "created_at"], name="msg_chatroom_time_idx"),
             models.Index(fields=["is_deleted"], name="msg_deleted_idx"),
+            models.Index(fields=["chatroom", "is_seen"], name="msg_chatroom_seen_idx"),
         ]
 
     def __str__(self):

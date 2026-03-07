@@ -11,7 +11,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema, OpenApiResponse
-from django.db.models import Q, Prefetch, Subquery, OuterRef
+from django.db.models import Q, Prefetch, Subquery, OuterRef, Count
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
@@ -21,6 +21,7 @@ from .serializers import (
     ChatRoomSerializer,
     MessageSerializer,
     MessageCreateSerializer,
+    UnreadCountSerializer,
 )
 from .permissions import IsChatParticipant
 from .services import disable_chatroom
@@ -252,3 +253,83 @@ class DisableChatRoomView(APIView):
 
         disable_chatroom(chatroom)
         return success_response(ChatRoomSerializer(chatroom).data)
+
+
+class UnreadCountView(APIView):
+    """
+    Get unread message counts for all chatrooms of the current user.
+    GET /api/v1/chatrooms/unread/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Chatrooms"],
+        summary="Get unread message counts",
+        description="Returns chatroom_id and unread_count for all chatrooms where the current user has unseen messages.",
+        responses={
+            200: OpenApiResponse(
+                response=UnreadCountSerializer(many=True),
+                description="Unread counts per chatroom",
+            ),
+        },
+    )
+    def get(self, request):
+        user = request.user
+        unread_data = (
+            Message.objects.filter(
+                chatroom__in=ChatRoom.objects.filter(
+                    Q(sender=user) | Q(receiver=user)
+                ),
+                is_seen=False,
+                is_deleted=False,
+            )
+            .exclude(sender=user)
+            .values("chatroom_id")
+            .annotate(unread_count=Count("id"))
+            .order_by()
+        )
+
+        results = [
+            {"chatroom_id": item["chatroom_id"], "unread_count": item["unread_count"]}
+            for item in unread_data
+        ]
+        return success_response(results)
+
+
+class MarkMessagesSeenView(APIView):
+    """
+    Mark all messages in a chatroom as seen for the current user.
+    POST /api/v1/chatrooms/<uuid:pk>/seen/
+    """
+
+    permission_classes = [IsAuthenticated, IsChatParticipant]
+
+    @extend_schema(
+        tags=["Chatrooms"],
+        summary="Mark messages as seen",
+        description="Mark all unseen messages in a chatroom as seen. Only marks messages sent by the other user.",
+        responses={
+            200: OpenApiResponse(description="Messages marked as seen"),
+            404: OpenApiResponse(description="Chatroom not found"),
+        },
+    )
+    def post(self, request, pk):
+        try:
+            chatroom = ChatRoom.objects.select_related("sender", "receiver").get(pk=pk)
+            self.check_object_permissions(request, chatroom)
+        except ChatRoom.DoesNotExist:
+            return success_response(
+                {"message": "Chatroom not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        updated = Message.objects.filter(
+            chatroom=chatroom,
+            is_seen=False,
+            is_deleted=False,
+        ).exclude(
+            sender=request.user,
+        ).update(is_seen=True)
+
+        return success_response({"marked_seen": updated})
