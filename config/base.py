@@ -37,6 +37,7 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "django_filters",
     "django_extensions",
+    "channels",
 ]
 
 LOCAL_APPS = [
@@ -49,6 +50,7 @@ LOCAL_APPS = [
     "apps.verification.apps.VerificationConfig",
     "apps.admin_panel.apps.AdminPanelConfig",
     "apps.complaints.apps.ComplaintsConfig",
+    "apps.chatrooms.apps.ChatroomsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -88,6 +90,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
+
+# Channel Layers (Redis)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [config("REDIS_URL", default="redis://localhost:6379/0")],
+        },
+    },
+}
 
 # Database
 DATABASES = {
