@@ -7,7 +7,6 @@ import json
 
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema, OpenApiResponse
@@ -29,27 +28,39 @@ from core.api import success_response
 from core.permissions import IsAdmin
 
 
-class ChatRoomListView(ListAPIView):
+class ChatRoomListView(APIView):
     """
-    List all chatrooms. Admin only.
+    List all chatrooms with search, filter, and pagination. Admin only.
     GET /api/v1/chatrooms/
     """
 
-    serializer_class = ChatRoomListSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
 
-    def get_queryset(self):
-        if getattr(self, "swagger_fake_view", False):
-            return ChatRoom.objects.none()
+    @extend_schema(
+        tags=["Chatrooms"],
+        summary="List all chatrooms (admin)",
+        description="Returns all chatrooms with search, status filter, and pagination. Admin only.",
+        responses={
+            200: OpenApiResponse(
+                response=ChatRoomListSerializer(many=True),
+                description="List of chatrooms",
+            ),
+            401: OpenApiResponse(description="Not authenticated"),
+        },
+    )
+    def get(self, request):
+        search = request.query_params.get("search", "").strip()
+        status_filter = request.query_params.get("status", "").strip()
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 12))
 
-        user = self.request.user
         last_msg_subquery = (
             Message.objects.filter(chatroom=OuterRef("pk"), is_deleted=False)
             .order_by("-created_at")
             .values("pk")[:1]
         )
-        queryset = (
-            ChatRoom.objects.filter(Q(sender=user) | Q(receiver=user))
+        qs = (
+            ChatRoom.objects.all()
             .select_related(
                 "sender",
                 "receiver",
@@ -72,30 +83,32 @@ class ChatRoomListView(ListAPIView):
             )
             .order_by("-created_at")
         )
-        return queryset
 
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        return ctx
+        if search:
+            qs = qs.filter(
+                Q(sender__full_name__icontains=search)
+                | Q(sender__username__icontains=search)
+                | Q(receiver__full_name__icontains=search)
+                | Q(receiver__username__icontains=search)
+            )
 
-    @extend_schema(
-        tags=["Chatrooms"],
-        summary="List all chatrooms (admin)",
-        description="Returns all chatrooms. Admin only.",
-        responses={
-            200: OpenApiResponse(
-                response=ChatRoomListSerializer(many=True),
-                description="List of chatrooms",
-            ),
-            401: OpenApiResponse(description="Not authenticated"),
-        },
-    )
-    def get(self, request, *args, **kwargs):
-        response = super().get(request, *args, **kwargs)
-        # Attach prefetched last messages to serializer objects
-        if hasattr(response, "data") and "data" in response.data:
-            pass  # Handled by serializer's get_last_message
-        return response
+        if status_filter == "active":
+            qs = qs.filter(is_active=True)
+        elif status_filter == "disabled":
+            qs = qs.filter(is_active=False)
+
+        total = qs.count()
+        start = (page - 1) * page_size
+        chatrooms = qs[start : start + page_size]
+
+        serializer = ChatRoomListSerializer(chatrooms, many=True)
+        return success_response({
+            "results": serializer.data,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
+        })
 
 
 class SendMessageView(APIView):
@@ -217,4 +230,45 @@ class DisableChatRoomView(APIView):
             )
 
         disable_chatroom(chatroom)
+        return success_response(ChatRoomSerializer(chatroom).data)
+
+
+class EnableChatRoomView(APIView):
+    """
+    Enable a disabled chatroom. Admin only.
+    POST /api/v1/chatrooms/<uuid:pk>/enable/
+    """
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    @extend_schema(
+        tags=["Chatrooms"],
+        summary="Enable a chatroom",
+        description="Re-enable a disabled chatroom so messages can be sent again. Admin only.",
+        responses={
+            200: OpenApiResponse(
+                response=ChatRoomSerializer, description="Chatroom enabled"
+            ),
+            400: OpenApiResponse(description="Chatroom is already active"),
+            404: OpenApiResponse(description="Chatroom not found"),
+        },
+    )
+    def post(self, request, pk):
+        try:
+            chatroom = ChatRoom.objects.select_related("sender", "receiver").get(pk=pk)
+        except ChatRoom.DoesNotExist:
+            return success_response(
+                {"message": "Chatroom not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        if chatroom.is_active:
+            return success_response(
+                {"message": "Chatroom is already active."},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        chatroom.is_active = True
+        chatroom.disabled_at = None
+        chatroom.save(update_fields=["is_active", "disabled_at"])
         return success_response(ChatRoomSerializer(chatroom).data)
