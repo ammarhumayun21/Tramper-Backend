@@ -9,3 +9,6 @@ class ShipmentsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.shipments"
     verbose_name = "Shipments"
+
+    def ready(self):
+        import apps.shipments.signals  # noqa: F401

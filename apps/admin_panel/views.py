@@ -37,6 +37,7 @@ from .serializers import (
     AdminVerifyOTPSerializer,
     AdminUserSerializer,
     AdminUserListSerializer,
+    AdminUserDetailSerializer,
     AdminTripListSerializer,
     AdminShipmentListSerializer,
     AdminPaymentSerializer,
@@ -807,7 +808,10 @@ class AdminUsersListView(APIView):
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 10))
 
-        qs = User.objects.all().order_by("-created_at")
+        qs = User.objects.all().annotate(
+            trip_count=Count("trips"),
+            shipment_count=Count("sent_shipments"),
+        ).order_by("-created_at")
 
         if search:
             qs = qs.filter(
@@ -817,9 +821,19 @@ class AdminUsersListView(APIView):
             )
 
         if role == "Traveler":
-            qs = qs.filter(total_trips__gt=0)
+            qs = qs.filter(trip_count__gt=0)
         elif role == "Sender":
-            qs = qs.filter(total_shipments__gt=0)
+            qs = qs.filter(shipment_count__gt=0)
+        elif role == "User":
+            qs = qs.filter(trip_count=0, shipment_count=0, is_superuser=False, is_staff=False)
+        elif role == "Admin":
+            qs = qs.filter(Q(is_superuser=True) | Q(is_staff=True))
+
+        status_filter = request.query_params.get("status", "all")
+        if status_filter == "Active":
+            qs = qs.filter(is_active=True)
+        elif status_filter == "Inactive":
+            qs = qs.filter(is_active=False)
 
         total = qs.count()
         start = (page - 1) * page_size
@@ -859,6 +873,138 @@ class AdminUserToggleStatusView(APIView):
         return success_response({
             "id": str(user.id),
             "status": "Active" if user.is_active else "Inactive",
+        })
+
+
+class AdminUserDetailView(APIView):
+    """Get full user detail for admin panel."""
+    permission_classes = [IsAdmin]
+
+    def get(self, request, user_id):
+        try:
+            user = User.objects.prefetch_related(
+                "verification_requests"
+            ).select_related("settings").get(id=user_id)
+        except User.DoesNotExist:
+            return success_response(
+                {"message": "User not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = AdminUserDetailSerializer(user)
+        return success_response(serializer.data)
+
+
+class AdminUserTripsView(APIView):
+    """Get all trips for a specific user."""
+    permission_classes = [IsAdmin]
+
+    STATUS_MAP = {
+        "valid": "Approved",
+        "invalid": "Cancelled",
+    }
+
+    def get(self, request, user_id):
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 10))
+
+        qs = Trip.objects.filter(traveler_id=user_id).select_related(
+            "traveler", "from_location", "to_location", "capacity", "airline", "category"
+        ).order_by("-departure_date")
+
+        total = qs.count()
+        start = (page - 1) * page_size
+        trips = qs[start : start + page_size]
+
+        result = []
+        for trip in trips:
+            cap = trip.capacity
+            if trip.status == "invalid":
+                status_str = "Cancelled"
+            elif trip.status == "completed":
+                status_str = "Completed"
+            elif not trip.is_approved:
+                status_str = "Pending Approval"
+            else:
+                status_str = "Approved"
+
+            result.append({
+                "id": str(trip.id),
+                "from": trip.from_location.iata_code or trip.from_location.city,
+                "to": trip.to_location.iata_code or trip.to_location.city,
+                "fromCity": trip.from_location.city,
+                "toCity": trip.to_location.city,
+                "date": trip.departure_date.strftime("%Y-%m-%d"),
+                "departureTime": trip.departure_time.strftime("%H:%M") if trip.departure_time else None,
+                "capacity": f"{cap.total_weight} {cap.unit}" if cap else "N/A",
+                "status": status_str,
+                "mode": trip.mode,
+                "category": trip.category.name if trip.category else "",
+                "airline": trip.airline.name if trip.airline else None,
+            })
+
+        return success_response({
+            "results": result,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
+        })
+
+
+class AdminUserShipmentsView(APIView):
+    """Get all shipments for a specific user (as sender)."""
+    permission_classes = [IsAdmin]
+
+    STATUS_LABELS = {
+        "pending": "Pending",
+        "accepted": "Matched",
+        "in_transit": "In Transit",
+        "delivered": "Delivered",
+        "received": "Delivered",
+        "cancelled": "Disputed",
+    }
+
+    def get(self, request, user_id):
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 10))
+
+        qs = Shipment.objects.filter(sender_id=user_id).select_related(
+            "sender", "traveler", "from_location", "to_location"
+        ).prefetch_related("items", "items__category").order_by("-created_at")
+
+        total = qs.count()
+        start = (page - 1) * page_size
+        shipments = qs[start : start + page_size]
+
+        result = []
+        for s in shipments:
+            total_weight = sum(
+                float(item.single_item_weight * item.quantity)
+                for item in s.items.all()
+            )
+            weight_str = f"{total_weight:.1f} kg" if total_weight else "N/A"
+            status_str = self.STATUS_LABELS.get(s.status, s.status.title())
+
+            result.append({
+                "id": str(s.id),
+                "name": s.name,
+                "fromCity": s.from_location.city if s.from_location else "Unknown",
+                "recipientCity": s.to_location.city if s.to_location else "Unknown",
+                "matchedTraveler": (s.traveler.full_name or s.traveler.username) if s.traveler else None,
+                "status": status_str,
+                "createdDate": s.created_at.strftime("%Y-%m-%d"),
+                "parcelWeight": weight_str,
+                "reward": str(s.reward) if s.reward else "0",
+                "itemCount": s.items.count(),
+            })
+
+        return success_response({
+            "results": result,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
         })
 
 

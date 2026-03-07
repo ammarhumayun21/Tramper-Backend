@@ -174,25 +174,29 @@ class AdminUserListSerializer(serializers.ModelSerializer):
 
     name = serializers.SerializerMethodField()
     phone = serializers.CharField(default="")
-    role = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
     joinedDate = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     avatar = serializers.CharField(source='profile_image_url', default='')
 
     class Meta:
         model = User
-        fields = ["id", "name", "email", "phone", "role", "joinedDate", "status", "avatar"]
+        fields = ["id", "name", "email", "phone", "roles", "joinedDate", "status", "avatar"]
 
     def get_name(self, obj):
         return obj.full_name or obj.username
 
-    def get_role(self, obj):
-        # Users with trips are Travelers, with shipments are Senders
-        if obj.total_trips and obj.total_trips > 0:
-            return "Traveler"
-        if obj.total_shipments and obj.total_shipments > 0:
-            return "Sender"
-        return "Traveler"
+    def get_roles(self, obj):
+        roles = []
+        if obj.is_superuser or obj.is_staff:
+            roles.append("Admin")
+        if obj.trips.count() > 0:
+            roles.append("Traveler")
+        if obj.sent_shipments.count() > 0:
+            roles.append("Sender")
+        if not roles:
+            roles.append("User")
+        return roles
 
     def get_joinedDate(self, obj):
         if obj.created_at:
@@ -201,6 +205,86 @@ class AdminUserListSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         return "Active" if obj.is_active else "Inactive"
+
+
+class AdminUserDetailSerializer(serializers.ModelSerializer):
+    """Full user detail for admin — includes settings and verification."""
+
+    name = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
+    joinedDate = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    avatar = serializers.CharField(source='profile_image_url', default='')
+    total_trips = serializers.SerializerMethodField()
+    total_shipments = serializers.SerializerMethodField()
+    settings = serializers.SerializerMethodField()
+    verification = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "name", "email", "phone", "username", "roles", "joinedDate",
+            "status", "avatar", "address", "city", "country", "bio", "rating",
+            "total_trips", "total_deals", "total_shipments",
+            "is_email_verified", "is_phone_verified", "is_user_verified",
+            "is_staff", "is_superuser", "last_login", "settings", "verification",
+        ]
+
+    def get_total_trips(self, obj):
+        return obj.trips.count()
+
+    def get_total_shipments(self, obj):
+        return obj.sent_shipments.count()
+
+    def get_name(self, obj):
+        return obj.full_name or obj.username
+
+    def get_roles(self, obj):
+        roles = []
+        if obj.is_superuser or obj.is_staff:
+            roles.append("Admin")
+        if obj.trips.count() > 0:
+            roles.append("Traveler")
+        if obj.sent_shipments.count() > 0:
+            roles.append("Sender")
+        if not roles:
+            roles.append("User")
+        return roles
+
+    def get_joinedDate(self, obj):
+        if obj.created_at:
+            return obj.created_at.strftime("%Y-%m-%d")
+        return ""
+
+    def get_status(self, obj):
+        return "Active" if obj.is_active else "Inactive"
+
+    def get_settings(self, obj):
+        try:
+            s = obj.settings
+            return {
+                "matchmaking_notifications_enabled": s.matchmaking_notifications_enabled,
+                "chat_notifications_enabled": s.chat_notifications_enabled,
+                "selected_language_code": s.selected_language_code,
+            }
+        except Exception:
+            return None
+
+    def get_verification(self, obj):
+        vr = obj.verification_requests.order_by("-created_at").first()
+        if not vr:
+            return None
+        return {
+            "id": str(vr.id),
+            "status": vr.status,
+            "id_card_number": vr.id_card_number or "",
+            "phone_number": vr.phone_number or "",
+            "id_card_front_url": vr.id_card_front_url or "",
+            "id_card_back_url": vr.id_card_back_url or "",
+            "selfie_with_id_url": vr.selfie_with_id_url or "",
+            "admin_notes": vr.admin_notes or "",
+            "created_at": vr.created_at.isoformat() if vr.created_at else "",
+        }
 
 
 class AdminTripListSerializer(serializers.Serializer):

@@ -6,3 +6,6 @@ class TripsConfig(AppConfig):
     name = 'apps.trips'
     verbose_name = 'Trips'
 
+    def ready(self):
+        import apps.trips.signals  # noqa: F401
+
