@@ -171,7 +171,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 chatroom=self.chatroom,
                 sender=self.user,
             )
-            file_url = message.file.url if message.file else None
             return {
                 "id": str(message.id),
                 "chatroom": str(message.chatroom_id),
@@ -183,7 +182,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 },
                 "message_type": message.message_type,
                 "text": message.text,
-                "file": file_url,
+                "file": message.file,
                 "created_at": message.created_at.isoformat(),
                 "is_deleted": message.is_deleted,
             }

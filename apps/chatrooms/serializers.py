@@ -6,6 +6,7 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 
 from .models import ChatRoom, Message
+from core.storage import s3_storage
 
 
 class ChatUserSerializer(serializers.Serializer):
@@ -38,12 +39,21 @@ class MessageSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class MessageCreateSerializer(serializers.ModelSerializer):
+class MessageCreateSerializer(serializers.Serializer):
     """Serializer for creating a new message."""
 
-    class Meta:
-        model = Message
-        fields = ["message_type", "text", "file"]
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+    message_type = serializers.ChoiceField(choices=Message.MESSAGE_TYPE_CHOICES, default="text")
+    text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    file = serializers.FileField(required=False, allow_null=True)
+
+    def validate_file(self, value):
+        if value and value.size > self.MAX_FILE_SIZE:
+            raise serializers.ValidationError(
+                _("File size must not exceed 10 MB.")
+            )
+        return value
 
     def validate(self, attrs):
         message_type = attrs.get("message_type", "text")
@@ -62,6 +72,18 @@ class MessageCreateSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+    def create(self, validated_data):
+        file = validated_data.pop("file", None)
+        file_url = None
+
+        if file:
+            file_url = s3_storage.upload_image(file, folder="chatrooms/files")
+
+        return Message.objects.create(
+            **validated_data,
+            file=file_url,
+        )
 
 
 class LastMessageSerializer(serializers.ModelSerializer):

@@ -3,6 +3,8 @@ Chatroom views for Tramper.
 Handles chatroom listing, message retrieval, and message sending (API fallback).
 """
 
+import json
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
@@ -196,11 +198,13 @@ class SendMessageView(APIView):
         message_data = MessageSerializer(message).data
         channel_layer = get_channel_layer()
         if channel_layer:
+            # Convert to JSON-safe dict (UUIDs → strings) for Redis msgpack serializer
+            safe_message_data = json.loads(json.dumps(message_data, default=str))
             async_to_sync(channel_layer.group_send)(
                 f"chat_{chatroom.id}",
                 {
                     "type": "chat.message",
-                    "message": message_data,
+                    "message": safe_message_data,
                 },
             )
 

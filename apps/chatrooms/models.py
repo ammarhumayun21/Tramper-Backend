@@ -125,8 +125,8 @@ class Message(models.Model):
         verbose_name=_("text"),
     )
 
-    file = models.FileField(
-        upload_to="chatrooms/files/%Y/%m/",
+    file = models.URLField(
+        max_length=500,
         blank=True,
         null=True,
         verbose_name=_("file"),
