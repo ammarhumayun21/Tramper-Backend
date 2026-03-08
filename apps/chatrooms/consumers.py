@@ -12,6 +12,7 @@ UserConsumer: Unified user WebSocket (ws/user/)
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
+from django.db import close_old_connections
 from django.db.models import Q
 
 from .models import ChatRoom, Message
@@ -137,6 +138,8 @@ class UserConsumer(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_discard(
                 self.user_group_name, self.channel_name
             )
+        # Release DB connection held by this consumer
+        await database_sync_to_async(close_old_connections)()
 
     async def receive_json(self, content, **kwargs):
         """Route incoming actions."""
