@@ -53,30 +53,46 @@ def login(email: str, password: str) -> str:
 
 
 async def chat_client(label: str, token: str, chatroom_id: str, messages_to_send: list[str], delay: float = 1.0):
-    """Connect to chatroom, send messages, and print received messages."""
-    url = f"{WS_URL}/ws/chat/{chatroom_id}/?token={token}"
+    """Connect to ws/user/, join chatroom, send messages, and print received messages."""
+    url = f"{WS_URL}/ws/user/?token={token}"
     print(f"[{label}] Connecting to {url}")
 
     async with websockets.connect(url) as ws:
         print(f"[{label}] ✓ Connected")
 
+        # Join the chatroom
+        await ws.send(json.dumps({"action": "join_chat", "chatroom_id": chatroom_id}))
+        print(f"[{label}] → Joined chatroom {chatroom_id}")
+
         async def receiver():
             try:
                 async for raw in ws:
                     msg = json.loads(raw)
+                    msg_type = msg.get("type", "")
                     if "error" in msg:
                         print(f"[{label}] ✗ Error: {msg['error']}")
-                    else:
-                        sender_name = msg.get("sender", {}).get("full_name", "Unknown")
-                        text = msg.get("text", "[file]")
+                    elif msg_type == "message_history":
+                        print(f"[{label}] ← Message history: {len(msg.get('messages', []))} messages")
+                    elif msg_type == "new_message":
+                        message = msg.get("message", {})
+                        sender_name = message.get("sender", {}).get("full_name", "Unknown")
+                        text = message.get("text", "[file]")
                         print(f"[{label}] ← {sender_name}: {text}")
+                    elif msg_type == "chatroom_list":
+                        print(f"[{label}] ← Chatroom list: {len(msg.get('chatrooms', []))} rooms")
+                    elif msg_type == "chatroom_update":
+                        print(f"[{label}] ← Chatroom update: {msg.get('chatroom', {}).get('id', '?')}")
+                    else:
+                        print(f"[{label}] ← {msg}")
             except websockets.ConnectionClosed as e:
                 print(f"[{label}] Connection closed: {e.code} {e.reason}")
 
         async def sender():
+            # Wait for message_history to arrive
+            await asyncio.sleep(delay)
             for text in messages_to_send:
                 await asyncio.sleep(delay)
-                payload = json.dumps({"message_type": "text", "text": text})
+                payload = json.dumps({"action": "send_message", "message_type": "text", "text": text})
                 await ws.send(payload)
                 print(f"[{label}] → Sent: {text}")
             # Keep alive for a bit to receive replies

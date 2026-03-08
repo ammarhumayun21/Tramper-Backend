@@ -1,13 +1,12 @@
 """
-WebSocket consumers for real-time chat messaging.
+WebSocket consumer for real-time chat messaging.
 
-UserConsumer: Global user WebSocket (ws/user/)
+UserConsumer: Unified user WebSocket (ws/user/)
   - On connect: sends chatroom list with unread counts
   - Receives live chatroom_update events
-
-ChatConsumer: Per-chatroom WebSocket (ws/chat/<chatroom_id>/)
-  - On connect: sends message history, auto-marks messages as seen
-  - Handles text messages, load_more, file message broadcasts
+  - Handles join_chat / leave_chat to enter/exit chatrooms
+  - Handles send_message for text messages
+  - Handles load_more for older message pagination
 """
 
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
@@ -76,11 +75,30 @@ def _build_chatroom_update(room, user):
 
 class UserConsumer(AsyncJsonWebsocketConsumer):
     """
-    Global user WebSocket consumer.
+    Unified user WebSocket consumer.
 
     Connection: ws/user/?token=<jwt>
-    - Sends full chatroom list with last message and unread counts on connect.
-    - Receives live chatroom_update events when messages arrive in any chatroom.
+
+    On connect:
+      - Sends full chatroom list with last message and unread counts.
+
+    Actions (client → server):
+      - {"action": "refresh"}
+          Re-sends chatroom list.
+      - {"action": "join_chat", "chatroom_id": "<uuid>"}
+          Joins a chatroom: sends message_history, marks messages as seen.
+      - {"action": "leave_chat"}
+          Leaves the currently joined chatroom.
+      - {"action": "send_message", "message_type": "text", "text": "..."}
+          Sends a text message in the joined chatroom.
+      - {"action": "send_message", "message_type": "image|video|file", "message_id": "<uuid>"}
+          Broadcasts a file message (already created via REST API).
+      - {"action": "load_more", "before": "<message_id>"}
+          Loads older messages before the given message ID.
+
+    Server → client events:
+      - chatroom_list, chatroom_update, messages_seen
+      - message_history, new_message, load_more_messages
     """
 
     async def connect(self):
@@ -91,31 +109,59 @@ class UserConsumer(AsyncJsonWebsocketConsumer):
             return
 
         self.user_group_name = f"user_{self.user.id}"
+        self.is_admin = await self._check_is_staff()
+
+        # Chat state — set when user joins a chatroom
+        self.chatroom = None
+        self.chatroom_id = None
+        self.room_group_name = None
+
         await self.channel_layer.group_add(self.user_group_name, self.channel_name)
         await self.accept()
 
         # Send chatroom list
-        chatrooms = await self.get_chatroom_list()
+        chatrooms = await self._get_chatroom_list()
         await self.send_json({
             "type": "chatroom_list",
             "chatrooms": chatrooms,
         })
 
     async def disconnect(self, close_code):
+        # Leave chat room group if joined
+        if self.room_group_name:
+            await self.channel_layer.group_discard(
+                self.room_group_name, self.channel_name
+            )
+        # Leave user group
         if hasattr(self, "user_group_name"):
             await self.channel_layer.group_discard(
                 self.user_group_name, self.channel_name
             )
 
     async def receive_json(self, content, **kwargs):
-        """Handle incoming messages — supports refresh."""
+        """Route incoming actions."""
         action = content.get("action")
+
         if action == "refresh":
-            chatrooms = await self.get_chatroom_list()
+            chatrooms = await self._get_chatroom_list()
             await self.send_json({
                 "type": "chatroom_list",
                 "chatrooms": chatrooms,
             })
+
+        elif action == "join_chat":
+            await self._handle_join_chat(content)
+
+        elif action == "leave_chat":
+            await self._handle_leave_chat()
+
+        elif action == "send_message":
+            await self._handle_send_message(content)
+
+        elif action == "load_more":
+            await self._handle_load_more(content)
+
+    # ---- Channel-layer event handlers ----
 
     async def chatroom_update(self, event):
         """Forward chatroom_update from channel layer to client."""
@@ -131,10 +177,161 @@ class UserConsumer(AsyncJsonWebsocketConsumer):
             "chatroom_id": event["chatroom_id"],
         })
 
+    async def chat_message(self, event):
+        """Receive new message from room group and send to WebSocket."""
+        await self.send_json({
+            "type": "new_message",
+            "message": event["message"],
+        })
+
+    # ---- Action handlers ----
+
+    async def _handle_join_chat(self, content):
+        """Join a chatroom: validate, send history, mark seen."""
+        chatroom_id = content.get("chatroom_id")
+        if not chatroom_id:
+            await self.send_json({"error": "chatroom_id is required."})
+            return
+
+        # Leave previous room if any
+        await self._handle_leave_chat()
+
+        # Fetch and validate
+        chatroom = await self._get_chatroom(chatroom_id)
+        if chatroom is None:
+            await self.send_json({"type": "error", "error": "Chatroom not found.", "code": 4404})
+            return
+
+        if not self.is_admin and not await self._is_participant(chatroom):
+            await self.send_json({"type": "error", "error": "Not a participant.", "code": 4403})
+            return
+
+        if not self.is_admin and not chatroom.is_active:
+            await self.send_json({"type": "error", "error": "Chatroom is disabled.", "code": 4403})
+            return
+
+        # Store chat state
+        self.chatroom = chatroom
+        self.chatroom_id = str(chatroom.pk)
+        self.room_group_name = f"chat_{self.chatroom_id}"
+
+        # Join room group
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+
+        # Send message history (last 50)
+        messages = await self._get_message_history(limit=50)
+        await self.send_json({
+            "type": "message_history",
+            "chatroom_id": self.chatroom_id,
+            "messages": messages,
+            "has_more": len(messages) == 50,
+        })
+
+        # Auto-mark unseen messages as seen (non-admin only)
+        if not self.is_admin:
+            marked_count = await self._mark_messages_seen()
+            if marked_count > 0:
+                other_user_id = await self._get_other_user_id()
+                if other_user_id:
+                    await self.channel_layer.group_send(
+                        f"user_{other_user_id}",
+                        {
+                            "type": "messages.seen",
+                            "chatroom_id": self.chatroom_id,
+                        },
+                    )
+
+    async def _handle_leave_chat(self):
+        """Leave the currently joined chatroom."""
+        if self.room_group_name:
+            await self.channel_layer.group_discard(
+                self.room_group_name, self.channel_name
+            )
+        self.chatroom = None
+        self.chatroom_id = None
+        self.room_group_name = None
+
+    async def _handle_send_message(self, content):
+        """Send a message in the joined chatroom."""
+        if not self.chatroom:
+            await self.send_json({"error": "Join a chatroom first."})
+            return
+
+        # Admin monitors are read-only
+        if self.is_admin:
+            await self.send_json({"error": "Admin monitoring mode — sending messages is disabled."})
+            return
+
+        # Re-check chatroom is still active
+        is_active = await self._check_chatroom_active()
+        if not is_active:
+            await self.send_json({"error": "Chatroom is disabled. You cannot send messages."})
+            return
+
+        message_type = content.get("message_type", "text")
+        text = content.get("text", "")
+
+        if message_type not in ("text", "image", "video", "file"):
+            await self.send_json({"error": "Invalid message type."})
+            return
+
+        if message_type == "text" and (not text or not text.strip()):
+            await self.send_json({"error": "Text is required for text messages."})
+            return
+
+        # File-based messages must reference an existing message created via REST
+        if message_type in ("image", "video", "file"):
+            message_id = content.get("message_id")
+            if message_id:
+                message_data = await self._get_existing_message(message_id)
+                if message_data is None:
+                    await self.send_json({"error": "Message not found."})
+                    return
+            else:
+                await self.send_json({"error": "File messages must be sent via the REST API."})
+                return
+        else:
+            message_data = await self._save_message(message_type, text)
+
+        # Broadcast to the room group
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                "type": "chat.message",
+                "message": message_data,
+            },
+        )
+
+        # Push chatroom_update to both users' global groups
+        await self._push_chatroom_updates()
+
+    async def _handle_load_more(self, content):
+        """Load older messages in the joined chatroom."""
+        if not self.chatroom:
+            await self.send_json({"error": "Join a chatroom first."})
+            return
+
+        before = content.get("before")
+        if not before:
+            await self.send_json({"error": "'before' message ID is required."})
+            return
+
+        messages = await self._get_message_history(limit=50, before_id=before)
+        await self.send_json({
+            "type": "load_more_messages",
+            "chatroom_id": self.chatroom_id,
+            "messages": messages,
+            "has_more": len(messages) == 50,
+        })
+
     # ---- Database helpers ----
 
     @database_sync_to_async
-    def get_chatroom_list(self):
+    def _check_is_staff(self):
+        return self.user.is_staff
+
+    @database_sync_to_async
+    def _get_chatroom_list(self):
         user = self.user
         chatrooms = (
             ChatRoom.objects.filter(Q(sender=user) | Q(receiver=user))
@@ -178,183 +375,25 @@ class UserConsumer(AsyncJsonWebsocketConsumer):
 
         return result
 
-
-class ChatConsumer(AsyncJsonWebsocketConsumer):
-    """
-    WebSocket consumer for chatroom messaging.
-
-    Connection: ws/chat/<chatroom_id>/?token=<jwt>
-    - Only the two participants (and admin/staff) can connect.
-    - On connect: sends last 50 messages, auto-marks unseen messages as seen.
-    - Supports load_more action for older messages.
-    - Saves text messages to DB and broadcasts to room group.
-    - After each new message, pushes chatroom_update to both users' global groups.
-    """
-
-    async def connect(self):
-        self.chatroom_id = self.scope["url_route"]["kwargs"]["chatroom_id"]
-        self.room_group_name = f"chat_{self.chatroom_id}"
-        self.user = self.scope.get("user", AnonymousUser())
-
-        # Reject unauthenticated users
-        if isinstance(self.user, AnonymousUser) or not self.user.is_authenticated:
-            await self.close(code=4401)
-            return
-
-        # Fetch chatroom and verify participant
-        self.chatroom = await self.get_chatroom()
-        if self.chatroom is None:
-            await self.close(code=4404)
-            return
-
-        # Allow admin/staff to monitor without being a participant
-        self.is_admin = await self.check_is_staff()
-        if not self.is_admin and not await self.is_participant():
-            await self.close(code=4403)
-            return
-
-        if not self.is_admin and not self.chatroom.is_active:
-            await self.close(code=4403)
-            return
-
-        # Join room group
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        await self.accept()
-
-        # Send message history (last 50)
-        messages = await self.get_message_history(limit=50)
-        await self.send_json({
-            "type": "message_history",
-            "messages": messages,
-            "has_more": len(messages) == 50,
-        })
-
-        # Auto-mark unseen messages from the other user as seen
-        if not self.is_admin:
-            marked_count = await self.mark_messages_seen()
-            if marked_count > 0:
-                other_user_id = await self.get_other_user_id()
-                if other_user_id:
-                    # Notify the other user's global WS that messages were seen
-                    await self.channel_layer.group_send(
-                        f"user_{other_user_id}",
-                        {
-                            "type": "messages.seen",
-                            "chatroom_id": str(self.chatroom_id),
-                        },
-                    )
-
-    async def disconnect(self, close_code):
-        if hasattr(self, "room_group_name"):
-            await self.channel_layer.group_discard(
-                self.room_group_name, self.channel_name
-            )
-
-    async def receive_json(self, content, **kwargs):
-        """Handle incoming WebSocket messages."""
-        action = content.get("action")
-
-        # Handle load_more
-        if action == "load_more":
-            before = content.get("before")
-            if not before:
-                await self.send_json({"error": "'before' message ID is required."})
-                return
-            messages = await self.get_message_history(limit=50, before_id=before)
-            await self.send_json({
-                "type": "load_more_messages",
-                "messages": messages,
-                "has_more": len(messages) == 50,
-            })
-            return
-
-        # Admin monitors are read-only
-        if getattr(self, "is_admin", False):
-            await self.send_json({"error": "Admin monitoring mode — sending messages is disabled."})
-            return
-
-        # Re-check chatroom is still active
-        is_active = await self.check_chatroom_active()
-        if not is_active:
-            await self.send_json(
-                {"error": "Chatroom is disabled. You cannot send messages."}
-            )
-            return
-
-        message_type = content.get("message_type", "text")
-        text = content.get("text", "")
-
-        # Validate
-        if message_type not in ("text", "image", "video", "file"):
-            await self.send_json({"error": "Invalid message type."})
-            return
-
-        if message_type == "text" and (not text or not text.strip()):
-            await self.send_json({"error": "Text is required for text messages."})
-            return
-
-        # For file-based messages via WebSocket, expect a message_id
-        # referencing a message already created via the REST API.
-        if message_type in ("image", "video", "file"):
-            message_id = content.get("message_id")
-            if message_id:
-                message_data = await self.get_existing_message(message_id)
-                if message_data is None:
-                    await self.send_json({"error": "Message not found."})
-                    return
-            else:
-                await self.send_json(
-                    {"error": "File messages must be sent via the REST API."}
-                )
-                return
-        else:
-            # Save text message to database
-            message_data = await self.save_message(message_type, text)
-
-        # Broadcast to the room group
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "chat.message",
-                "message": message_data,
-            },
-        )
-
-        # Push chatroom_update to both users' global groups
-        await self._push_chatroom_updates()
-
-    async def chat_message(self, event):
-        """Receive message from room group and send to WebSocket."""
-        await self.send_json({
-            "type": "new_message",
-            "message": event["message"],
-        })
-
-    # ---- Database helpers ----
-
     @database_sync_to_async
-    def get_chatroom(self):
+    def _get_chatroom(self, chatroom_id):
         try:
             return ChatRoom.objects.select_related("sender", "receiver").get(
-                pk=self.chatroom_id
+                pk=chatroom_id
             )
         except (ChatRoom.DoesNotExist, ValueError):
             return None
 
     @database_sync_to_async
-    def is_participant(self):
-        return self.chatroom.has_participant(self.user)
+    def _is_participant(self, chatroom):
+        return chatroom.has_participant(self.user)
 
     @database_sync_to_async
-    def check_is_staff(self):
-        return self.user.is_staff
-
-    @database_sync_to_async
-    def check_chatroom_active(self):
+    def _check_chatroom_active(self):
         return ChatRoom.objects.filter(pk=self.chatroom_id, is_active=True).exists()
 
     @database_sync_to_async
-    def get_message_history(self, limit=50, before_id=None):
+    def _get_message_history(self, limit=50, before_id=None):
         qs = Message.objects.filter(
             chatroom_id=self.chatroom_id, is_deleted=False
         ).select_related("sender").order_by("-created_at")
@@ -371,7 +410,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         return [_serialize_message(m) for m in messages]
 
     @database_sync_to_async
-    def mark_messages_seen(self):
+    def _mark_messages_seen(self):
         return Message.objects.filter(
             chatroom_id=self.chatroom_id,
             is_seen=False,
@@ -379,13 +418,13 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         ).exclude(sender=self.user).update(is_seen=True)
 
     @database_sync_to_async
-    def get_other_user_id(self):
+    def _get_other_user_id(self):
         if str(self.chatroom.sender_id) == str(self.user.id):
             return str(self.chatroom.receiver_id)
         return str(self.chatroom.sender_id)
 
     @database_sync_to_async
-    def save_message(self, message_type, text):
+    def _save_message(self, message_type, text):
         message = Message.objects.create(
             chatroom=self.chatroom,
             sender=self.user,
@@ -395,7 +434,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         return _serialize_message(message, sender_override=self.user)
 
     @database_sync_to_async
-    def get_existing_message(self, message_id):
+    def _get_existing_message(self, message_id):
         try:
             message = Message.objects.select_related("sender").get(
                 pk=message_id,
