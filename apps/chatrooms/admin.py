@@ -11,23 +11,15 @@ from .models import ChatRoom, Message
 
 
 class MessageInline(admin.TabularInline):
-    """Inline readonly display of messages within a chatroom."""
+    """Inline display of messages within a chatroom."""
 
     model = Message
-    extra = 0
-    readonly_fields = ("id", "sender", "message_type", "text", "file", "created_at", "is_deleted")
+    extra = 1
+    readonly_fields = ("id", "created_at")
     fields = ("id", "sender", "message_type", "text", "file", "created_at", "is_deleted")
+    raw_id_fields = ("sender",)
     ordering = ("-created_at",)
     show_change_link = True
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 
 @admin.action(description=_("Disable selected chatrooms"))
@@ -48,14 +40,11 @@ class ChatRoomAdmin(admin.ModelAdmin):
         "receiver__email",
         "receiver__username",
     )
-    readonly_fields = ("id", "sender", "receiver", "request", "created_at", "disabled_at")
+    readonly_fields = ("id", "created_at", "disabled_at")
     raw_id_fields = ("sender", "receiver", "request")
     inlines = [MessageInline]
     ordering = ("-created_at",)
     actions = [disable_chatrooms]
-
-    def has_add_permission(self, request):
-        return False
 
 
 @admin.register(Message)
@@ -69,7 +58,8 @@ class MessageAdmin(admin.ModelAdmin):
         "sender__username",
         "text",
     )
-    readonly_fields = ("id", "chatroom", "sender", "message_type", "text", "file", "created_at")
+    readonly_fields = ("id", "created_at")
+    raw_id_fields = ("chatroom", "sender")
     ordering = ("-created_at",)
 
     def short_text(self, obj):
