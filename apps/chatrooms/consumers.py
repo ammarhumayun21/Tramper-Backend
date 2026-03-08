@@ -182,10 +182,24 @@ class UserConsumer(AsyncJsonWebsocketConsumer):
 
     async def chat_message(self, event):
         """Receive new message from room group and send to WebSocket."""
+        message = event["message"]
         await self.send_json({
             "type": "new_message",
-            "message": event["message"],
+            "message": message,
         })
+
+        # Auto-mark as seen if this message is from the other user
+        if not self.is_admin and message.get("sender", {}).get("id") != str(self.user.id):
+            await self._mark_message_seen_by_id(message.get("id"))
+            # Notify sender that their message was seen
+            other_user_id = message["sender"]["id"]
+            await self.channel_layer.group_send(
+                f"user_{other_user_id}",
+                {
+                    "type": "messages.seen",
+                    "chatroom_id": self.chatroom_id,
+                },
+            )
 
     # ---- Action handlers ----
 
@@ -418,6 +432,15 @@ class UserConsumer(AsyncJsonWebsocketConsumer):
             chatroom_id=self.chatroom_id,
             is_seen=False,
             is_deleted=False,
+        ).exclude(sender=self.user).update(is_seen=True)
+
+    @database_sync_to_async
+    def _mark_message_seen_by_id(self, message_id):
+        if not message_id:
+            return 0
+        return Message.objects.filter(
+            pk=message_id,
+            is_seen=False,
         ).exclude(sender=self.user).update(is_seen=True)
 
     @database_sync_to_async
