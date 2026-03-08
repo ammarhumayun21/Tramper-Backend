@@ -42,7 +42,7 @@
       }
 
       .logo img {
-        max-height: 60px;
+        max-height: 90px;
         width: auto;
       }
 
@@ -253,7 +253,7 @@
         }
 
         .logo img {
-          max-height: 48px;
+          max-height: 70px;
         }
 
         h1 {
@@ -262,6 +262,115 @@
 
         .info-box {
           padding: 16px;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #1a1a2e !important;
+        }
+
+        .container {
+          background-color: #1e1e2e !important;
+        }
+
+        h1 {
+          color: #e5e7eb !important;
+        }
+
+        p {
+          color: #d1d5db !important;
+        }
+
+        .greeting {
+          color: #e5e7eb !important;
+        }
+
+        .info-box {
+          background: linear-gradient(135deg, #1e293b 0%, #1e3a5f 100%) !important;
+          border-color: #2563eb !important;
+        }
+
+        .info-box p,
+        .info-box .label {
+          color: #93c5fd !important;
+        }
+
+        .status-approved,
+        .status-active {
+          background-color: #064e3b !important;
+          color: #6ee7b7 !important;
+          border-color: #065f46 !important;
+        }
+
+        .status-rejected,
+        .status-inactive {
+          background-color: #7f1d1d !important;
+          color: #fca5a5 !important;
+          border-color: #991b1b !important;
+        }
+
+        .notes-box {
+          background-color: #1e293b !important;
+          border-color: #374151 !important;
+          color: #d1d5db !important;
+        }
+
+        .notes-box .notes-title {
+          color: #e5e7eb !important;
+        }
+
+        .cta-section {
+          background-color: #1e293b !important;
+        }
+
+        .notice-info {
+          background-color: #1e3a5f !important;
+          border-left-color: #3b82f6 !important;
+        }
+
+        .notice-info p {
+          color: #93c5fd !important;
+        }
+
+        .notice-warning {
+          background-color: #422006 !important;
+          border-left-color: #f59e0b !important;
+        }
+
+        .notice-warning p {
+          color: #fcd34d !important;
+        }
+
+        .notice-success {
+          background-color: #064e3b !important;
+          border-left-color: #10b981 !important;
+        }
+
+        .notice-success p {
+          color: #6ee7b7 !important;
+        }
+
+        .notice-error {
+          background-color: #7f1d1d !important;
+          border-left-color: #ef4444 !important;
+        }
+
+        .notice-error p {
+          color: #fca5a5 !important;
+        }
+
+        .signature {
+          border-top-color: #374151 !important;
+        }
+
+        .footer {
+          background-color: #171727 !important;
+          border-top-color: #374151 !important;
+        }
+
+        .footer p {
+          color: #9ca3af !important;
         }
       }
 
