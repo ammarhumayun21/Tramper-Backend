@@ -10,6 +10,8 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
 from django.utils.translation import activate, get_language
 
+from .utils import attach_logo
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,6 +55,8 @@ def send_welcome_email(user):
             to=[to_email],
         )
         email.attach_alternative(html_content, "text/html")
+        email.mixed_subtype = "related"
+        attach_logo(email)
         
         # Send email
         email.send(fail_silently=False)

@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
 from core.api import success_response
+from core.emails import send_new_complaint_admin_email
 from .models import Complaint
 from .serializers import ComplaintSerializer
 
@@ -31,5 +32,9 @@ class ComplaintListCreateView(APIView):
     def post(self, request):
         serializer = ComplaintSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(user=request.user)
+        complaint = serializer.save(user=request.user)
+
+        # Notify all super admins about the new complaint
+        send_new_complaint_admin_email(complaint)
+
         return success_response(serializer.data, status_code=status.HTTP_201_CREATED)

@@ -1,0 +1,50 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Complaint Update - Tramper{% endblock %}
+
+{% block content %}
+<h1>Complaint Status Updated</h1>
+
+<p class="greeting">Hello {{ full_name }},</p>
+
+<p>
+  There has been an update to your complaint.
+</p>
+
+<div class="info-box">
+  <p><span class="label">Subject:</span> {{ complaint_subject }}</p>
+  <p><span class="label">Status:</span>
+    <span class="status-badge {% if status == 'resolved' or status == 'closed' %}status-approved{% else %}status-rejected{% endif %}">
+      {{ status_display }}
+    </span>
+  </p>
+  <p><span class="label">Updated:</span> {{ updated_at }}</p>
+</div>
+
+{% if admin_response %}
+<div class="notes-box">
+  <p class="notes-title">📝 Admin Response:</p>
+  <p>{{ admin_response }}</p>
+</div>
+{% endif %}
+
+{% if status == 'resolved' %}
+<div class="notice-box notice-success">
+  <p><strong>Your complaint has been resolved.</strong> If you're still experiencing issues, feel free to contact us again.</p>
+</div>
+{% elif status == 'closed' %}
+<div class="notice-box notice-info">
+  <p><strong>This complaint has been closed.</strong> If you need further assistance, please submit a new complaint.</p>
+</div>
+{% elif status == 'in_progress' %}
+<div class="notice-box notice-warning">
+  <p><strong>We're working on it.</strong> Our team is actively investigating your complaint. We'll update you soon.</p>
+</div>
+{% endif %}
+
+<p>
+  If you have any questions, please don't hesitate to contact our support team.
+</p>
+{% endblock %}
+
+{% block footer_text %}This is a notification about your complaint.{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "emails/base.html" %}
+
+{% block title %}{{ email_subject }} - Tramper{% endblock %}
+
+{% block content %}
+<h1>Message from Tramper Support</h1>
+
+<p class="greeting">Hello {{ full_name }},</p>
+
+<div class="info-box">
+  <p><span class="label">Regarding your complaint:</span> {{ complaint_subject }}</p>
+</div>
+
+<div class="notes-box">
+  <p class="notes-title">📨 Message from Support:</p>
+  <p>{{ email_message }}</p>
+</div>
+
+<p>
+  If you have any further questions or concerns, please don't hesitate to reply or submit a new complaint.
+</p>
+{% endblock %}
+
+{% block footer_text %}This is a response to your complaint from Tramper Support.{% endblock %}

@@ -1,0 +1,20 @@
+Trip {{ status_display }} - Tramper
+
+Hello {{ full_name }},
+
+Your trip has been reviewed by our administration team.
+
+Status: {{ status_display }}
+Route: {{ from_location }} → {{ to_location }}
+Departure: {{ departure_date }}{% if departure_time %} at {{ departure_time }}{% endif %}
+Mode: {{ mode }}
+
+{% if is_approved %}Great news! Your trip is now live and visible to other Tramper users. Senders can now browse and send requests for your trip.{% else %}Your trip has been cancelled. This trip is no longer active on the platform. If you believe this was done in error, please contact our support team.{% endif %}
+
+If you have any questions, please don't hesitate to contact our support team.
+
+Best regards,
+The Tramper Team
+
+---
+This email was sent to {{ user.email }}. This is a notification about your trip.

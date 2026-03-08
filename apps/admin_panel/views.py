@@ -24,7 +24,13 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from core.api import success_response
 from core.permissions import IsAdmin
-from core.emails import send_admin_otp_email
+from core.emails import (
+    send_admin_otp_email,
+    send_account_status_email,
+    send_trip_status_email,
+    send_complaint_status_email,
+    send_complaint_reply_email,
+)
 from apps.users.models import User
 from apps.trips.models import Trip, TripCapacity
 from apps.shipments.models import Shipment, ShipmentItem
@@ -870,6 +876,9 @@ class AdminUserToggleStatusView(APIView):
         user.is_active = not user.is_active
         user.save(update_fields=["is_active"])
 
+        # Send account status email to user
+        send_account_status_email(user, user.is_active)
+
         return success_response({
             "id": str(user.id),
             "status": "Active" if user.is_active else "Inactive",
@@ -1134,10 +1143,12 @@ class AdminTripUpdateStatusView(APIView):
             trip.is_approved = True
             trip.status = "valid"
             trip.save(update_fields=["is_approved", "status"])
+            send_trip_status_email(trip, is_approved=True)
         elif status_str == "Cancelled":
             trip.is_approved = False
             trip.status = "invalid"
             trip.save(update_fields=["is_approved", "status"])
+            send_trip_status_email(trip, is_approved=False)
 
         return success_response({"id": str(trip.id), "status": status_str})
 
@@ -1433,6 +1444,9 @@ class AdminComplaintUpdateStatusView(APIView):
             complaint.admin_response = admin_response
         complaint.save()
 
+        # Send status update email to the complaint creator
+        send_complaint_status_email(complaint)
+
         return success_response({"message": "Complaint updated successfully"})
 
 
@@ -1458,39 +1472,6 @@ class AdminComplaintSendEmailView(APIView):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
-        from django.core.mail import EmailMultiAlternatives
-        from django.conf import settings as django_settings
+        send_complaint_reply_email(complaint, subject, message)
 
-        user_name = complaint.user.full_name or complaint.user.username
-        html_content = (
-            f"<p>Hello {user_name},</p>"
-            f"<p>{message}</p>"
-            f"<br/><p>Regarding your complaint: <strong>{complaint.subject}</strong></p>"
-            f"<br/><p>Best regards,<br/>Tramper Support Team</p>"
-        )
-        text_content = (
-            f"Hello {user_name},\n\n"
-            f"{message}\n\n"
-            f"Regarding your complaint: {complaint.subject}\n\n"
-            f"Best regards,\nTramper Support Team"
-        )
-
-        try:
-            msg = EmailMultiAlternatives(
-                subject=subject,
-                body=text_content,
-                from_email=django_settings.DEFAULT_FROM_EMAIL,
-                to=[complaint.user.email],
-            )
-            msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=False)
-            sent = True
-        except Exception:
-            sent = False
-
-        if sent:
-            return success_response({"message": "Email sent successfully"})
-        return success_response(
-            {"message": "Failed to send email"},
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        return success_response({"message": "Email queued successfully"})

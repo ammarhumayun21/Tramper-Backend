@@ -1,0 +1,16 @@
+{{ email_subject }} - Tramper
+
+Hello {{ full_name }},
+
+Regarding your complaint: {{ complaint_subject }}
+
+Message from Support:
+{{ email_message }}
+
+If you have any further questions or concerns, please don't hesitate to reply or submit a new complaint.
+
+Best regards,
+The Tramper Team
+
+---
+This email was sent to {{ user.email }}. This is a response to your complaint from Tramper Support.

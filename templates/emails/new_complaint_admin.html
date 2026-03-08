@@ -1,0 +1,30 @@
+{% extends "emails/base.html" %}
+
+{% block title %}New Complaint Received - Tramper{% endblock %}
+
+{% block content %}
+<h1>New Complaint Received 📩</h1>
+
+<p class="greeting">Hello Admin,</p>
+
+<p>
+  A new complaint has been submitted and requires your attention.
+</p>
+
+<div class="info-box">
+  <p><span class="label">From:</span> {{ complainant_name }} ({{ complainant_email }})</p>
+  <p><span class="label">Subject:</span> {{ complaint_subject }}</p>
+  <p><span class="label">Submitted:</span> {{ created_at }}</p>
+</div>
+
+<div class="notes-box">
+  <p class="notes-title">Complaint Details:</p>
+  <p>{{ complaint_description }}</p>
+</div>
+
+<div class="notice-box notice-warning">
+  <p><strong>Action required.</strong> Please review and respond to this complaint from the admin panel.</p>
+</div>
+{% endblock %}
+
+{% block footer_text %}This is an admin notification about a new complaint.{% endblock %}

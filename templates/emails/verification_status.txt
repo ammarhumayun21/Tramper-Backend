@@ -1,0 +1,21 @@
+Verification {{ status_display }} - Tramper
+
+Hello {{ full_name }},
+
+Your identity verification request has been reviewed by our team.
+
+Status: {{ status_display }}
+Reviewed on: {{ reviewed_at }}
+
+{% if admin_notes %}Admin Notes:
+{{ admin_notes }}
+
+{% endif %}{% if is_approved %}Congratulations! Your account is now verified. You can enjoy the full features of Tramper.{% else %}Please review the admin notes above and resubmit your verification documents if needed.{% endif %}
+
+If you have any questions, please don't hesitate to contact our support team.
+
+Best regards,
+The Tramper Team
+
+---
+This email was sent to {{ user.email }}. This is a notification about your verification request.

@@ -20,6 +20,7 @@ from .serializers import (
 )
 from core.api import success_response
 from core.storage import s3_storage
+from core.emails import send_verification_status_email
 
 
 class VerificationSubmitView(APIView):
@@ -231,5 +232,9 @@ class AdminVerificationDetailView(APIView):
             user = verification.user
             user.is_user_verified = False
             user.save(update_fields=["is_user_verified"])
+
+        # Send verification status email to user
+        if new_status in ("approved", "rejected"):
+            send_verification_status_email(verification)
 
         return success_response(VerificationRequestSerializer(verification).data)

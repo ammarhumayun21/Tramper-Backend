@@ -1,0 +1,45 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Verification {{ status_display }} - Tramper{% endblock %}
+
+{% block content %}
+<h1>Verification {{ status_display }} {% if is_approved %}✅{% else %}❌{% endif %}</h1>
+
+<p class="greeting">Hello {{ full_name }},</p>
+
+<p>
+  Your identity verification request has been reviewed by our team.
+</p>
+
+<div class="info-box">
+  <p><span class="label">Status:</span>
+    <span class="status-badge {% if is_approved %}status-approved{% else %}status-rejected{% endif %}">
+      {{ status_display }}
+    </span>
+  </p>
+  <p><span class="label">Reviewed on:</span> {{ reviewed_at }}</p>
+</div>
+
+{% if admin_notes %}
+<div class="notes-box">
+  <p class="notes-title">📝 Admin Notes:</p>
+  <p>{{ admin_notes }}</p>
+</div>
+{% endif %}
+
+{% if is_approved %}
+<div class="notice-box notice-success">
+  <p><strong>🎉 Congratulations!</strong> Your account is now verified. You can enjoy the full features of Tramper.</p>
+</div>
+{% else %}
+<div class="notice-box notice-warning">
+  <p><strong>What's next?</strong> Please review the admin notes above and resubmit your verification documents if needed.</p>
+</div>
+{% endif %}
+
+<p>
+  If you have any questions, please don't hesitate to contact our support team.
+</p>
+{% endblock %}
+
+{% block footer_text %}This is a notification about your verification request.{% endblock %}

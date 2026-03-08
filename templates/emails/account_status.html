@@ -1,0 +1,45 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Account {{ status_display }} - Tramper{% endblock %}
+
+{% block content %}
+<h1>Account {{ status_display }}</h1>
+
+<p class="greeting">Hello {{ full_name }},</p>
+
+{% if is_active %}
+<p>
+  Your Tramper account has been <strong>reactivated</strong> by our administration team. You can now access all features of the platform again.
+</p>
+
+<div class="info-box">
+  <p><span class="label">Account Status:</span>
+    <span class="status-badge status-active">Active</span>
+  </p>
+</div>
+
+<div class="notice-box notice-success">
+  <p><strong>Welcome back!</strong> Your account is fully active and you can log in to continue using Tramper.</p>
+</div>
+{% else %}
+<p>
+  Your Tramper account has been <strong>deactivated</strong> by our administration team. You will not be able to access the platform until your account is reactivated.
+</p>
+
+<div class="info-box">
+  <p><span class="label">Account Status:</span>
+    <span class="status-badge status-inactive">Inactive</span>
+  </p>
+</div>
+
+<div class="notice-box notice-warning">
+  <p><strong>What does this mean?</strong> You will not be able to log in or use Tramper services until an administrator reactivates your account.</p>
+</div>
+{% endif %}
+
+<p>
+  If you believe this was done in error or have any questions, please contact our support team.
+</p>
+{% endblock %}
+
+{% block footer_text %}This is a notification about your account status.{% endblock %}

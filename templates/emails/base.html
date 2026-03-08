@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Welcome to Tramper</title>
+    <title>{% block title %}Tramper{% endblock %}</title>
     <style>
       * {
         margin: 0;
@@ -63,50 +63,84 @@
         font-size: 16px;
       }
 
-      .features {
+      .greeting {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 17px;
+      }
+
+      .info-box {
         background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
         border-radius: 12px;
-        padding: 30px;
-        margin: 30px 0;
+        padding: 24px;
+        margin: 24px 0;
         border: 2px solid #bae6fd;
       }
 
-      .features p {
+      .info-box p {
+        margin-bottom: 8px;
+        color: #0c4a6e;
+      }
+
+      .info-box p:last-child {
+        margin-bottom: 0;
+      }
+
+      .info-box .label {
         font-weight: 600;
         color: #0c4a6e;
-        margin-bottom: 20px;
-        font-size: 18px;
       }
 
-      .features ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+      .status-badge {
+        display: inline-block;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
-      .features li {
-        padding: 12px 0;
-        padding-left: 30px;
-        position: relative;
-        color: #0c4a6e;
+      .status-approved {
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+      }
+
+      .status-rejected {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+      }
+
+      .status-active {
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+      }
+
+      .status-inactive {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+      }
+
+      .notes-box {
+        background-color: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
         font-size: 15px;
+        color: #374151;
+        line-height: 1.6;
       }
 
-      .features li::before {
-        content: '✓';
-        position: absolute;
-        left: 0;
-        color: #4086eb;
-        font-weight: bold;
-        font-size: 18px;
-        width: 24px;
-        height: 24px;
-        background-color: #dbeafe;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
+      .notes-box .notes-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 8px;
+        font-size: 15px;
       }
 
       .cta-section {
@@ -127,12 +161,48 @@
         font-weight: 600;
         font-size: 16px;
         box-shadow: 0 4px 12px rgba(64, 134, 235, 0.4);
-        transition: transform 0.2s;
       }
 
-      .cta-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(64, 134, 235, 0.5);
+      .notice-box {
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin: 25px 0;
+      }
+
+      .notice-info {
+        background-color: #dbeafe;
+        border-left: 4px solid #3b82f6;
+      }
+
+      .notice-info p {
+        color: #1e40af;
+      }
+
+      .notice-warning {
+        background-color: #fef3c7;
+        border-left: 4px solid #f59e0b;
+      }
+
+      .notice-warning p {
+        color: #92400e;
+      }
+
+      .notice-success {
+        background-color: #d1fae5;
+        border-left: 4px solid #10b981;
+      }
+
+      .notice-success p {
+        color: #065f46;
+      }
+
+      .notice-error {
+        background-color: #fee2e2;
+        border-left: 4px solid #ef4444;
+      }
+
+      .notice-error p {
+        color: #991b1b;
       }
 
       .signature {
@@ -190,10 +260,12 @@
           font-size: 24px;
         }
 
-        .features {
-          padding: 20px;
+        .info-box {
+          padding: 16px;
         }
       }
+
+      {% block extra_styles %}{% endblock %}
     </style>
   </head>
   <body>
@@ -204,34 +276,7 @@
         </div>
 
         <div class="content">
-          <h1>Welcome, {{ full_name }}! 🎉</h1>
-
-          <p>
-            Thank you for joining Tramper. We're thrilled to have you on board
-            and can't wait to see where your adventures take you!
-          </p>
-
-          <div class="features">
-            <p>With Tramper, you can:</p>
-            <ul>
-              <li>Plan and share your trips with fellow travelers</li>
-              <li>Connect with a global community of adventurers</li>
-              <li>Send and receive shipments safely and efficiently</li>
-            </ul>
-          </div>
-
-          <div class="cta-section">
-            <p style="margin-bottom: 16px; font-weight: 600">
-              Ready to get started?
-            </p>
-            <a href="#" class="cta-button">Explore Tramper</a>
-          </div>
-
-          <p>
-            If you have any questions or need assistance, our support team is
-            always here to help. Just reach out and we'll get back to you as
-            soon as possible.
-          </p>
+          {% block content %}{% endblock %}
 
           <div class="signature">
             <p>Best regards,</p>
@@ -242,7 +287,7 @@
         <div class="footer">
           <p>
             This email was sent to <strong>{{ user.email }}</strong><br />
-            If you did not create an account, please ignore this email.
+            {% block footer_text %}{% endblock %}
           </p>
         </div>
       </div>

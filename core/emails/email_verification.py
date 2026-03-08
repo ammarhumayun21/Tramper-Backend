@@ -14,6 +14,8 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import activate, get_language
 
+from .utils import attach_logo
+
 logger = logging.getLogger(__name__)
 
 
@@ -82,6 +84,8 @@ def send_email_verification(user):
             to=[to_email],
         )
         email.attach_alternative(html_content, "text/html")
+        email.mixed_subtype = "related"
+        attach_logo(email)
         email.send(fail_silently=False)
 
         logger.info(f"Email verification sent to {to_email}")

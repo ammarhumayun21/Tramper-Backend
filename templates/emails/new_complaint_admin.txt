@@ -1,0 +1,20 @@
+New Complaint Received - Tramper
+
+Hello Admin,
+
+A new complaint has been submitted and requires your attention.
+
+From: {{ complainant_name }} ({{ complainant_email }})
+Subject: {{ complaint_subject }}
+Submitted: {{ created_at }}
+
+Complaint Details:
+{{ complaint_description }}
+
+Action required. Please review and respond to this complaint from the admin panel.
+
+Best regards,
+The Tramper Team
+
+---
+This email was sent to {{ user.email }}. This is an admin notification about a new complaint.

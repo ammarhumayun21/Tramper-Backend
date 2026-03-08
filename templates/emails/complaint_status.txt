@@ -1,0 +1,22 @@
+Complaint Status Updated - Tramper
+
+Hello {{ full_name }},
+
+There has been an update to your complaint.
+
+Subject: {{ complaint_subject }}
+Status: {{ status_display }}
+Updated: {{ updated_at }}
+
+{% if admin_response %}Admin Response:
+{{ admin_response }}
+
+{% endif %}{% if status == 'resolved' %}Your complaint has been resolved. If you're still experiencing issues, feel free to contact us again.{% elif status == 'closed' %}This complaint has been closed. If you need further assistance, please submit a new complaint.{% elif status == 'in_progress' %}We're working on it. Our team is actively investigating your complaint. We'll update you soon.{% endif %}
+
+If you have any questions, please don't hesitate to contact our support team.
+
+Best regards,
+The Tramper Team
+
+---
+This email was sent to {{ user.email }}. This is a notification about your complaint.

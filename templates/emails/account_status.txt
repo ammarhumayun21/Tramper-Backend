@@ -1,0 +1,21 @@
+Account {{ status_display }} - Tramper
+
+Hello {{ full_name }},
+
+{% if is_active %}Your Tramper account has been reactivated by our administration team. You can now access all features of the platform again.
+
+Account Status: Active
+
+Welcome back! Your account is fully active and you can log in to continue using Tramper.{% else %}Your Tramper account has been deactivated by our administration team. You will not be able to access the platform until your account is reactivated.
+
+Account Status: Inactive
+
+You will not be able to log in or use Tramper services until an administrator reactivates your account.{% endif %}
+
+If you believe this was done in error or have any questions, please contact our support team.
+
+Best regards,
+The Tramper Team
+
+---
+This email was sent to {{ user.email }}. This is a notification about your account status.
