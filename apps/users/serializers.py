@@ -329,6 +329,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             "matchmaking_notifications_enabled",
             "chat_notifications_enabled",
             "selected_language_code",
+            "ziina_username",
             "created_at",
             "updated_at",
         ]

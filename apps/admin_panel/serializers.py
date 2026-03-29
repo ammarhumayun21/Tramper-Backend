@@ -266,6 +266,7 @@ class AdminUserDetailSerializer(serializers.ModelSerializer):
                 "matchmaking_notifications_enabled": s.matchmaking_notifications_enabled,
                 "chat_notifications_enabled": s.chat_notifications_enabled,
                 "selected_language_code": s.selected_language_code,
+                "ziina_username": s.ziina_username,
             }
         except Exception:
             return None
@@ -326,6 +327,7 @@ class AdminPaymentSerializer(serializers.Serializer):
     tramper_commission = serializers.DecimalField(max_digits=12, decimal_places=2)
     currency = serializers.CharField()
     ziina_payment_intent_id = serializers.CharField(allow_blank=True, allow_null=True)
+    ziina_redirect_url = serializers.CharField(allow_blank=True, allow_null=True)
     status = serializers.CharField()
     date = serializers.CharField()
     shipment_id = serializers.UUIDField(allow_null=True)

@@ -269,7 +269,7 @@ class WithdrawView(APIView):
         summary="Withdraw funds",
         description=(
             "Withdraw funds from wallet. Transfers net amount (after receiver commission) "
-            "to the user's Ziina account. The user's ziiname must be set in their profile."
+            "to the user's Ziina account. The user's ziina_username must be set in their Settings."
         ),
         request=WithdrawSerializer,
         responses={

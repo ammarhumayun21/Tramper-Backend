@@ -340,11 +340,18 @@ class PaymentService:
             dict: Withdrawal details including net amount after commission.
 
         Raises:
-            ValueError: If insufficient balance, no ziiname, etc.
+            ValueError: If insufficient balance, no ziina_username set in settings, etc.
         """
-        if not user.ziiname:
+        # Read ziina username from UserSettings
+        ziina_username = None
+        try:
+            ziina_username = user.settings.ziina_username
+        except Exception:
+            pass
+
+        if not ziina_username:
             raise ValueError(
-                "You must set your Ziina username (ziiname) in your profile before withdrawing."
+                "You must set your Ziina username in Settings before withdrawing."
             )
 
         wallet = self._get_or_create_wallet(user)
@@ -369,7 +376,7 @@ class PaymentService:
         # Call Ziina Transfer to send funds to user
         try:
             self.ziina.transfer_to_user(
-                to_ziinames=user.ziiname,
+                to_ziinames=ziina_username,
                 amount=amount_in_fils,
                 currency_code=currency,
                 operation_id=operation_id,
@@ -395,12 +402,12 @@ class PaymentService:
         )
 
         logger.info(
-            "Withdrawal processed for user %s: amount=%s, commission=%s, net=%s, ziiname=%s",
+            "Withdrawal processed for user %s: amount=%s, commission=%s, net=%s, ziina_username=%s",
             user.id,
             amount,
             commission,
             net_amount,
-            user.ziiname,
+            ziina_username,
         )
 
         return {

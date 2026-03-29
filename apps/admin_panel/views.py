@@ -478,18 +478,19 @@ class DashboardMetricsView(APIView):
             created_at__lt=current_month_start,
         ).count()
 
-        # Total Revenue (sum of rewards for delivered shipments)
+        # Total Revenue (sum of rewards for shipments with completed payments or delivered)
+        revenue_statuses = ["delivered", "received", "payment_completed", "in_transit"]
         total_revenue = float(Shipment.objects.filter(
-            status="delivered"
+            status__in=revenue_statuses
         ).aggregate(total=Sum("reward"))["total"] or 0)
 
         revenue_this_month = float(Shipment.objects.filter(
-            status="delivered",
+            status__in=revenue_statuses,
             updated_at__gte=current_month_start,
         ).aggregate(total=Sum("reward"))["total"] or 0)
 
         revenue_prev_month = float(Shipment.objects.filter(
-            status="delivered",
+            status__in=revenue_statuses,
             updated_at__gte=prev_month_start,
             updated_at__lt=current_month_start,
         ).aggregate(total=Sum("reward"))["total"] or 0)
@@ -569,9 +570,10 @@ class RevenueByMonthView(APIView):
         now = timezone.now()
         six_months_ago = (now - timedelta(days=180)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
+        revenue_statuses = ["delivered", "received", "payment_completed", "in_transit"]
         revenue_data = (
             Shipment.objects.filter(
-                status="delivered",
+                status__in=revenue_statuses,
                 updated_at__gte=six_months_ago,
             )
             .annotate(month=TruncMonth("updated_at"))
@@ -1295,6 +1297,7 @@ class AdminPaymentsListView(APIView):
     )
     def get(self, request):
         from apps.payments.models import Payment
+        from apps.shipments.models import Shipment
         from django.db.models import Sum
 
         search = request.query_params.get("search", "").strip()
@@ -1350,22 +1353,36 @@ class AdminPaymentsListView(APIView):
                 "tramper_commission": float(tramper_commission),
                 "currency": p.currency,
                 "ziina_payment_intent_id": p.ziina_payment_intent_id,
+                "ziina_redirect_url": getattr(p, "ziina_redirect_url", None),
                 "status": status_map.get(p.status, "Pending"),
                 "date": p.created_at.strftime("%Y-%m-%d"),
                 "shipment_id": str(p.shipment.id) if p.shipment else None,
                 "shipment_name": p.shipment.name if p.shipment else None,
             })
 
-        # Calculate summary stats
+        # Calculate summary stats based on shipments in revenue-generating statuses
+        revenue_statuses = ["delivered", "received", "payment_completed", "in_transit"]
+        
+        # Total Revenue (sum of rewards from shipments)
+        total_revenue = float(Shipment.objects.filter(
+            status__in=revenue_statuses
+        ).aggregate(total=Sum("reward"))["total"] or 0)
+        
+        # Tramper Commission (commission from matching shipments)
+        from apps.payments.models import Payment
+        from decimal import Decimal
+        receiver_pct = Decimal(getattr(settings, "COMMISSION_FROM_RECEIVER", 5))
+        
         all_payments = Payment.objects.all()
         completed_qs = all_payments.filter(status=Payment.Status.COMPLETED)
         
-        agg = completed_qs.aggregate(
+        agg = all_payments.filter(
+            shipment__status__in=revenue_statuses
+        ).aggregate(
             t_payer=Sum("commission_amount"),
             t_reward=Sum("amount")
         )
         t_reward = agg["t_reward"] or Decimal("0.0")
-        total_revenue = float(t_reward)
         tramper_commission = float((agg["t_payer"] or Decimal("0.0")) + (t_reward * receiver_pct / Decimal("100.0")))
         
         pending_payouts = float(
