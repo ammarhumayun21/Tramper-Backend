@@ -479,20 +479,20 @@ class DashboardMetricsView(APIView):
         ).count()
 
         # Total Revenue (sum of rewards for delivered shipments)
-        total_revenue = Shipment.objects.filter(
+        total_revenue = float(Shipment.objects.filter(
             status="delivered"
-        ).aggregate(total=Sum("reward"))["total"] or 0
+        ).aggregate(total=Sum("reward"))["total"] or 0)
 
-        revenue_this_month = Shipment.objects.filter(
+        revenue_this_month = float(Shipment.objects.filter(
             status="delivered",
             updated_at__gte=current_month_start,
-        ).aggregate(total=Sum("reward"))["total"] or 0
+        ).aggregate(total=Sum("reward"))["total"] or 0)
 
-        revenue_prev_month = Shipment.objects.filter(
+        revenue_prev_month = float(Shipment.objects.filter(
             status="delivered",
             updated_at__gte=prev_month_start,
             updated_at__lt=current_month_start,
-        ).aggregate(total=Sum("reward"))["total"] or 0
+        ).aggregate(total=Sum("reward"))["total"] or 0)
 
         data = {
             "total_users": total_users,
@@ -968,6 +968,8 @@ class AdminUserShipmentsView(APIView):
     STATUS_LABELS = {
         "pending": "Pending",
         "accepted": "Matched",
+        "payment_pending": "Payment Pending",
+        "payment_completed": "Payment Completed",
         "in_transit": "In Transit",
         "delivered": "Delivered",
         "received": "Delivered",
@@ -1160,6 +1162,8 @@ class AdminShipmentsListView(APIView):
     STATUS_LABELS = {
         "pending": "Pending",
         "accepted": "Matched",
+        "payment_pending": "Payment Pending",
+        "payment_completed": "Payment Completed",
         "in_transit": "In Transit",
         "delivered": "Delivered",
         "received": "Delivered",
@@ -1194,6 +1198,8 @@ class AdminShipmentsListView(APIView):
         status_reverse = {
             "Pending": "pending",
             "Matched": "accepted",
+            "Payment Pending": "payment_pending",
+            "Payment Completed": "payment_completed",
             "In Transit": "in_transit",
             "Delivered": ["delivered", "received"],
             "Disputed": "cancelled",
@@ -1277,7 +1283,7 @@ class AdminShipmentsListView(APIView):
 class AdminPaymentsListView(APIView):
     """
     List all payments for admin panel.
-    Payments are derived from shipments that have a reward (delivered/accepted).
+    Uses the Payment model from the payments app.
     """
     permission_classes = [IsAdmin]
 
@@ -1288,64 +1294,86 @@ class AdminPaymentsListView(APIView):
         responses={200: OpenApiResponse(response=AdminPaymentSerializer(many=True))},
     )
     def get(self, request):
+        from apps.payments.models import Payment
+        from django.db.models import Sum
+
         search = request.query_params.get("search", "").strip()
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 10))
 
-        qs = Shipment.objects.select_related(
-            "sender", "traveler"
-        ).filter(
-            reward__gt=0,
+        qs = Payment.objects.select_related(
+            "user", "shipment", "shipment__traveler"
         ).order_by("-created_at")
 
         if search:
             qs = qs.filter(
-                Q(sender__full_name__icontains=search)
-                | Q(traveler__full_name__icontains=search)
+                Q(user__full_name__icontains=search)
+                | Q(shipment__traveler__full_name__icontains=search)
                 | Q(status__icontains=search)
             )
 
         total = qs.count()
         start = (page - 1) * page_size
-        shipments = qs[start : start + page_size]
+        payments = qs[start : start + page_size]
+
+        from django.conf import settings
+        from decimal import Decimal
+        receiver_pct = Decimal(getattr(settings, "COMMISSION_FROM_RECEIVER", 5))
 
         status_map = {
             "pending": "Pending",
-            "accepted": "Pending",
-            "in_transit": "Pending",
-            "delivered": "Completed",
-            "received": "Completed",
-            "cancelled": "Refunded",
+            "completed": "Completed",
+            "failed": "Failed",
+            "cancelled": "Cancelled",
         }
 
         result = []
-        for s in shipments:
+        for p in payments:
+            traveler = p.shipment.traveler if p.shipment and p.shipment.traveler else None
+            
+            commission_payer = p.commission_amount or Decimal("0.0")
+            commission_receiver = (p.amount * receiver_pct) / Decimal("100.0")
+            tramper_commission = commission_payer + commission_receiver
+
             result.append({
-                "id": str(s.id),
-                "sender": s.sender.full_name or s.sender.username,
+                "id": str(p.id),
+                "sender": p.user.full_name or p.user.username,
+                "sender_avatar": p.user.profile_image_url if hasattr(p.user, "profile_image_url") else None,
                 "traveler": (
-                    s.traveler.full_name or s.traveler.username
-                ) if s.traveler else "Unassigned",
-                "amount": float(s.reward),
-                "status": status_map.get(s.status, "Pending"),
-                "date": s.created_at.strftime("%Y-%m-%d"),
+                    traveler.full_name or traveler.username
+                ) if traveler else "Unassigned",
+                "traveler_avatar": traveler.profile_image_url if traveler and hasattr(traveler, "profile_image_url") else None,
+                "amount": float(p.amount),
+                "total_charged": float(p.total_charged) if p.total_charged else 0.0,
+                "commission_amount": float(commission_payer),
+                "receiver_commission": float(commission_receiver),
+                "tramper_commission": float(tramper_commission),
+                "currency": p.currency,
+                "ziina_payment_intent_id": p.ziina_payment_intent_id,
+                "status": status_map.get(p.status, "Pending"),
+                "date": p.created_at.strftime("%Y-%m-%d"),
+                "shipment_id": str(p.shipment.id) if p.shipment else None,
+                "shipment_name": p.shipment.name if p.shipment else None,
             })
 
         # Calculate summary stats
-        all_payments = Shipment.objects.filter(reward__gt=0)
-        total_revenue = float(
-            all_payments.filter(status__in=["delivered", "received"]).aggregate(
-                total=Sum("reward")
+        all_payments = Payment.objects.all()
+        completed_qs = all_payments.filter(status=Payment.Status.COMPLETED)
+        
+        agg = completed_qs.aggregate(
+            t_payer=Sum("commission_amount"),
+            t_reward=Sum("amount")
+        )
+        t_reward = agg["t_reward"] or Decimal("0.0")
+        total_revenue = float(t_reward)
+        tramper_commission = float((agg["t_payer"] or Decimal("0.0")) + (t_reward * receiver_pct / Decimal("100.0")))
+        
+        pending_payouts = float(
+            all_payments.filter(status=Payment.Status.PENDING).aggregate(
+                total=Sum("amount")
             )["total"] or 0
         )
-        pending_payouts = float(
-            all_payments.filter(
-                status__in=["pending", "accepted", "in_transit"]
-            ).aggregate(total=Sum("reward"))["total"] or 0
-        )
-        completed_count = all_payments.filter(
-            status__in=["delivered", "received"]
-        ).count()
+        completed_count = completed_qs.count()
 
         return success_response({
             "results": result,
@@ -1355,6 +1383,7 @@ class AdminPaymentsListView(APIView):
             "total_pages": (total + page_size - 1) // page_size,
             "summary": {
                 "total_revenue": total_revenue,
+                "tramper_commission": tramper_commission,
                 "pending_payouts": pending_payouts,
                 "completed_count": completed_count,
             },

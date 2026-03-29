@@ -12,6 +12,7 @@ from apps.requests.models import Request
 from apps.users.models import User
 from apps.verification.models import VerificationRequest
 from apps.chatrooms.models import ChatRoom
+from apps.payments.models import Payment
 from .models import ActivityLog
 
 
@@ -43,6 +44,7 @@ pre_save.connect(_cache_old_instance, sender=Request)
 pre_save.connect(_cache_old_instance, sender=User)
 pre_save.connect(_cache_old_instance, sender=VerificationRequest)
 pre_save.connect(_cache_old_instance, sender=ChatRoom)
+pre_save.connect(_cache_old_instance, sender=Payment)
 
 
 # ============================================================================
@@ -322,6 +324,59 @@ def log_chatroom_activity(sender, instance, created, **kwargs):
                     action="status_changed",
                     entity_type="chatroom",
                     entity_id=chatroom.pk,
-                    description=f"Chatroom between {sender_name} and {receiver_name} was disabled",
                     metadata={"old_is_active": old_is_active, "new_is_active": chatroom.is_active},
                 )
+
+
+# ============================================================================
+# PAYMENT SIGNALS
+# ============================================================================
+
+@receiver(post_save, sender=Payment)
+def log_payment_activity(sender, instance, created, **kwargs):
+    """Log payment creation and status changes."""
+    payment = instance
+    payer_name = payment.user.full_name or payment.user.username if payment.user else "A user"
+    
+    if created or getattr(instance, "_is_new", False):
+        ActivityLog.objects.create(
+            actor_id=payment.user_id,
+            action="created",
+            entity_type="payment",
+            entity_id=payment.pk,
+            description=f"{payer_name} initiated a payment of {payment.currency} {payment.amount}",
+            metadata={"status": payment.status, "amount": str(payment.amount)},
+        )
+    else:
+        old_status = getattr(instance, "_old_status", None)
+        if old_status and old_status != payment.status:
+            status_messages = {
+                "completed": f"Payment by {payer_name} for {payment.currency} {payment.amount} was completed",
+                "failed": f"Payment by {payer_name} for {payment.currency} {payment.amount} failed",
+                "cancelled": f"Payment by {payer_name} for {payment.currency} {payment.amount} was cancelled",
+            }
+            desc = status_messages.get(
+                payment.status,
+                f"Payment by {payer_name} status changed: {old_status} → {payment.status}",
+            )
+            ActivityLog.objects.create(
+                actor_id=payment.user_id,
+                action="status_changed",
+                entity_type="payment",
+                entity_id=payment.pk,
+                description=desc,
+                metadata={"old_status": old_status, "new_status": payment.status},
+            )
+
+
+@receiver(post_delete, sender=Payment)
+def log_payment_delete(sender, instance, **kwargs):
+    """Log payment deletion."""
+    payer_name = instance.user.full_name or instance.user.username if instance.user else "A user"
+    ActivityLog.objects.create(
+        actor_id=instance.user_id,
+        action="deleted",
+        entity_type="payment",
+        entity_id=instance.pk,
+        description=f"Payment by {payer_name} for {instance.currency} {instance.amount} was deleted",
+    )

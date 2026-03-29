@@ -131,6 +131,9 @@ class Shipment(models.Model):
     STATUS_CHOICES = [
         ("pending", _("Pending")),
         ("accepted", _("Accepted")),
+        ("payment_pending", _("Payment Pending")),
+        ("payment_completed", _("Payment Completed")),
+        ("payment_cancelled", _("Payment Cancelled")),
         ("in_transit", _("In Transit")),
         ("delivered", _("Delivered")),
         ("received", _("Received")),
@@ -172,7 +175,7 @@ class Shipment(models.Model):
     )
 
     status = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=STATUS_CHOICES,
         default="pending",
         verbose_name=_("status"),

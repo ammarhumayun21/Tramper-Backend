@@ -39,6 +39,7 @@ def _serialize_message(message, sender_override=None):
         "message_type": message.message_type,
         "text": message.text,
         "file": message.file,
+        "original_filename": message.original_filename,
         "created_at": message.created_at.isoformat(),
         "is_deleted": message.is_deleted,
         "is_seen": message.is_seen,

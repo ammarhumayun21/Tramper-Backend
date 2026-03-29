@@ -143,6 +143,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text=_("Designates whether the user has been identity-verified by admin."),
     )
 
+    ziiname = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_("Ziina username"),
+        help_text=_("User's Ziina username for payment transfers."),
+    )
+
     is_active = models.BooleanField(
         default=True,
         verbose_name=_("active"),

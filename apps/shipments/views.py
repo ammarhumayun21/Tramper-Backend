@@ -284,7 +284,21 @@ class ShipmentDetailView(APIView):
                 {"message": "Shipment not found"},
                 status_code=status.HTTP_404_NOT_FOUND,
             )
-        
+
+        # Payment completion guards for status transitions
+        new_status = request.data.get("status")
+        if new_status in ("in_transit", "delivered"):
+            if shipment.status not in ("payment_completed", "in_transit"):
+                return success_response(
+                    {
+                        "message": (
+                            f"Cannot transition to '{new_status}'. "
+                            "Payment must be completed first."
+                        )
+                    },
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
         serializer = ShipmentUpdateSerializer(shipment, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()

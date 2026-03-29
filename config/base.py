@@ -51,6 +51,7 @@ LOCAL_APPS = [
     "apps.admin_panel.apps.AdminPanelConfig",
     "apps.complaints.apps.ComplaintsConfig",
     "apps.chatrooms.apps.ChatroomsConfig",
+    "apps.payments.apps.PaymentsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -266,6 +267,7 @@ SPECTACULAR_SETTINGS = {
         # {"name": "Counter Offers", "description": "Counter offers in request negotiations"},
         {"name": "Notifications", "description": "User notifications"},
         {"name": "Verification Center", "description": "User identity verification and admin review"},
+        {"name": "Payments", "description": "Escrow payment management and wallet operations"},
     ],
 }
 
@@ -387,3 +389,20 @@ AWS_QUERYSTRING_AUTH = False  # Don't add authentication query parameters to URL
 
 # S3 Storage settings
 USE_S3 = config("USE_S3", default=False, cast=bool)
+
+# ============================================================================
+# ZIINA PAYMENT CONFIGURATION
+# ============================================================================
+ZIINA_BASE_URL = config("ZIINA_BASE_URL", default="https://api-v2.ziina.com/api")
+ZIINA_TOKEN = config("ZIINA_TOKEN", default="")
+ZIINA_CURRENCY = config("ZIINA_CURRENCY", default="AED")
+ZIINA_TEST_MODE = config("ZIINA_TEST_MODE", default=True, cast=bool)
+ZIINA_SUCCESS_URL = config("ZIINA_SUCCESS_URL", default="")
+ZIINA_CANCLE_URL = config("ZIINA_CANCLE_URL", default="")
+ZIINA_FALIURE_URL = config("ZIINA_FALIURE_URL", default="")
+
+# ============================================================================
+# COMMISSION CONFIGURATION
+# ============================================================================
+COMMISSION_FROM_PAYER = config("COMMISSION_FROM_PAYER", default=10, cast=int)
+COMMISSION_FROM_RECEIVER = config("COMMISSION_FROM_RECEIVER", default=5, cast=int)

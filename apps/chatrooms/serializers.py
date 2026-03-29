@@ -71,6 +71,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "message_type",
             "text",
             "file",
+            "original_filename",
             "created_at",
             "is_deleted",
             "is_seen",
@@ -115,13 +116,16 @@ class MessageCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         file = validated_data.pop("file", None)
         file_url = None
+        original_filename = None
 
         if file:
+            original_filename = file.name
             file_url = s3_storage.upload_image(file, folder="chatrooms/files")
 
         return Message.objects.create(
             **validated_data,
             file=file_url,
+            original_filename=original_filename,
         )
 
 
