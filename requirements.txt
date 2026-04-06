@@ -79,6 +79,7 @@ python-decouple==3.8
 python-slugify==8.0.4
 pytokens==0.4.1
 PyYAML==6.0.3
+qrcode[pil]==8.0
 redis==7.0.1
 referencing==0.36.2
 requests==2.32.5

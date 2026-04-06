@@ -92,6 +92,22 @@ class Request(models.Model):
         help_text=_("Optional message with the request"),
     )
 
+    qr_code_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name=_("QR code URL"),
+        help_text=_("S3 URL of the delivery confirmation QR code"),
+    )
+
+    qr_token = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        verbose_name=_("QR token"),
+        help_text=_("Secret token embedded in QR code for delivery verification"),
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name=_("created at"),

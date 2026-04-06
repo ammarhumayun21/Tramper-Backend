@@ -57,6 +57,34 @@ class S3Storage:
         except ClientError as e:
             raise Exception(f"Failed to upload image to S3: {str(e)}")
 
+    def upload_bytes(self, buffer, folder="images", filename=None, content_type="image/png"):
+        """
+        Upload an in-memory bytes buffer to S3.
+
+        Args:
+            buffer: BytesIO object with the file data (seeked to 0).
+            folder: S3 folder/prefix.
+            filename: Optional filename; a UUID-based name is generated if omitted.
+            content_type: MIME type of the file.
+
+        Returns:
+            str: Public URL of the uploaded file.
+        """
+        try:
+            if filename is None:
+                filename = f"{uuid.uuid4()}.png"
+            key = f"{folder}/{filename}"
+            buffer.seek(0)
+            self.s3_client.upload_fileobj(
+                buffer,
+                self.bucket_name,
+                key,
+                ExtraArgs={"ContentType": content_type},
+            )
+            return f"https://{settings.AWS_S3_CUSTOM_DOMAIN}/{key}"
+        except ClientError as e:
+            raise Exception(f"Failed to upload file to S3: {str(e)}")
+
     def delete_image(self, image_url):
         """
         Delete an image from S3 by its URL.

@@ -302,7 +302,33 @@ class ShipmentDetailView(APIView):
         serializer = ShipmentUpdateSerializer(shipment, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return success_response(ShipmentSerializer(shipment).data)
+
+        # Refresh to get updated status
+        shipment.refresh_from_db()
+
+        # Generate QR code when shipment transitions to in_transit
+        response_data = ShipmentSerializer(shipment).data
+        if shipment.status == "in_transit":
+            from apps.requests.models import Request as ShipmentRequest
+            from apps.requests.services import generate_delivery_qr_code
+
+            accepted_request = ShipmentRequest.objects.filter(
+                shipment=shipment, status="accepted"
+            ).first()
+            if accepted_request and not accepted_request.qr_code_url:
+                try:
+                    qr_url = generate_delivery_qr_code(accepted_request)
+                    response_data["qr_code_url"] = qr_url
+                except Exception:
+                    import logging
+                    logging.getLogger(__name__).exception(
+                        "Failed to generate QR code for request %s",
+                        accepted_request.id,
+                    )
+            elif accepted_request and accepted_request.qr_code_url:
+                response_data["qr_code_url"] = accepted_request.qr_code_url
+
+        return success_response(response_data)
 
     @extend_schema(
         tags=["Shipments"],

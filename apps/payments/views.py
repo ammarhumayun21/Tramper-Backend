@@ -4,6 +4,7 @@ Handles payment listing, escrow release, callbacks, wallet operations, and withd
 """
 
 import logging
+import secrets
 from decimal import Decimal
 
 from rest_framework import status
@@ -330,6 +331,7 @@ class ConfirmDeliveryView(APIView):
     )
     def post(self, request, shipment_id):
         from apps.shipments.models import Shipment
+        from apps.requests.models import Request as ShipmentRequest
 
         try:
             shipment = Shipment.objects.select_related("sender", "traveler").get(
@@ -348,6 +350,30 @@ class ConfirmDeliveryView(APIView):
                 status_code=status.HTTP_403_FORBIDDEN,
             )
 
+        # Validate QR token
+        token = request.data.get("token")
+        if not token:
+            return error_response(
+                "QR code token is required to confirm delivery.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        accepted_request = ShipmentRequest.objects.filter(
+            shipment=shipment, status="accepted"
+        ).first()
+
+        if not accepted_request or not accepted_request.qr_token:
+            return error_response(
+                "No active delivery QR code found for this shipment.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not secrets.compare_digest(token, accepted_request.qr_token):
+            return error_response(
+                "Invalid QR code token.",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
         # Verify the payment was completed
         completed_payment = Payment.objects.filter(
             shipment=shipment,
@@ -362,6 +388,14 @@ class ConfirmDeliveryView(APIView):
 
         try:
             wallet_transaction = payment_service.credit_receiver_wallet(shipment)
+
+            # Clean up QR code after successful confirmation
+            if accepted_request.qr_code_url:
+                from core.storage import s3_storage
+                s3_storage.delete_image(accepted_request.qr_code_url)
+            accepted_request.qr_code_url = None
+            accepted_request.qr_token = None
+            accepted_request.save(update_fields=["qr_code_url", "qr_token", "updated_at"])
 
             return success_response({
                 "message": "Delivery confirmed. Payment credited to courier's wallet.",
