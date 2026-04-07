@@ -176,7 +176,7 @@ class RequestDetailView(APIView):
             elif req.status == "rejected":
                 notification_service.notify_request_rejected(req)
         
-        # If accepted, update shipment traveler
+        # If accepted, update shipment traveler and reward
         if req.status == "accepted" and req.shipment:
             if req.sender == req.shipment.sender:
                 # Shipment owner accepted traveler's offer
@@ -185,7 +185,9 @@ class RequestDetailView(APIView):
                 # Traveler's offer was accepted by shipment owner
                 req.shipment.traveler = req.sender
             req.shipment.status = "accepted"
-            req.shipment.save(update_fields=["traveler", "status"])
+            # Update reward to the negotiated price (counter offer or original)
+            req.shipment.reward = req.current_price
+            req.shipment.save(update_fields=["traveler", "status", "reward"])
         
         return success_response(RequestSerializer(req).data)
 
