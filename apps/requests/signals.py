@@ -15,3 +15,29 @@ def update_deals_count_on_accept(sender, instance, **kwargs):
                 status="accepted",
             ).count()
             user.save(update_fields=["total_deals"])
+
+
+@receiver(post_save, sender=Request)
+def update_shipment_on_accept(sender, instance, **kwargs):
+    """Update shipment traveler and reward when a request is accepted."""
+    if instance.status != "accepted" or not instance.shipment:
+        return
+
+    shipment = instance.shipment
+
+    # Skip if shipment already has a traveler assigned (already processed)
+    if shipment.traveler and shipment.status == "accepted":
+        return
+
+    # Determine traveler based on who sent the request
+    if instance.sender == shipment.sender:
+        # Shipment owner sent the request → traveler is the receiver
+        shipment.traveler = instance.receiver
+    else:
+        # Traveler sent the request → traveler is the sender
+        shipment.traveler = instance.sender
+
+    shipment.status = "accepted"
+    # Update reward to the negotiated price (counter offer or original)
+    shipment.reward = instance.current_price
+    shipment.save(update_fields=["traveler", "status", "reward"])
