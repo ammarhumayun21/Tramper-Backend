@@ -302,9 +302,9 @@ class PaymentService:
         ).exists():
             raise ValueError("Payment has already been credited to your wallet.")
 
-        # Update shipment status to received if not already
-        if shipment.status not in ["delivered", "received"]:
-            shipment.status = "received"
+        # Update shipment status to delivered if not already
+        if shipment.status not in ["delivered"]:
+            shipment.status = "delivered"
             shipment.save(update_fields=["status", "updated_at"])
 
         # Credit the full reward amount to receiver's wallet

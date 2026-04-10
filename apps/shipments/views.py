@@ -679,3 +679,34 @@ class ShipmentMarkReceivedView(APIView):
         shipment.save(update_fields=["status", "updated_at"])
 
         return success_response({"message": "Shipment marked as received", "id": str(shipment.id), "status": "received"})
+
+
+class ShipmentMarkInTransitView(APIView):
+    """
+    Mark a shipment as in transit.
+    POST: Any authenticated user can mark a shipment as in transit.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Shipments"],
+        summary="Mark shipment as in transit",
+        description="Mark a shipment as in transit by its ID. Requires authentication.",
+        responses={
+            200: OpenApiResponse(description="Shipment marked as in transit"),
+            404: OpenApiResponse(description="Shipment not found"),
+        },
+    )
+    def post(self, request, pk):
+        try:
+            shipment = Shipment.objects.get(pk=pk)
+        except Shipment.DoesNotExist:
+            return success_response(
+                {"message": "Shipment not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        shipment.status = "in_transit"
+        shipment.save(update_fields=["status", "updated_at"])
+
+        return success_response({"message": "Shipment marked as in transit", "id": str(shipment.id), "status": "in_transit"})
