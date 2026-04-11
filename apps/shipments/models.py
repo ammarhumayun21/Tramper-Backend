@@ -134,9 +134,9 @@ class Shipment(models.Model):
         ("payment_pending", _("Payment Pending")),
         ("payment_completed", _("Payment Completed")),
         ("payment_cancelled", _("Payment Cancelled")),
+        ("received", _("Received")),
         ("in_transit", _("In Transit")),
         ("delivered", _("Delivered")),
-        ("received", _("Received")),
         ("cancelled", _("Cancelled")),
     ]
 

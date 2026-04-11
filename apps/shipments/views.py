@@ -285,15 +285,39 @@ class ShipmentDetailView(APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        # Payment completion guards for status transitions
+        # Status transition guards
         new_status = request.data.get("status")
-        if new_status in ("in_transit", "delivered"):
-            if shipment.status not in ("payment_completed", "in_transit"):
+        if new_status == "received":
+            if shipment.status != "payment_completed":
                 return success_response(
                     {
                         "message": (
-                            f"Cannot transition to '{new_status}'. "
+                            "Cannot mark as received. "
                             "Payment must be completed first."
+                        )
+                    },
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if new_status == "in_transit":
+            if shipment.status != "received":
+                return success_response(
+                    {
+                        "message": (
+                            "Cannot mark as in transit. "
+                            "Shipment must be marked as received first."
+                        )
+                    },
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if new_status == "delivered":
+            if shipment.status != "in_transit":
+                return success_response(
+                    {
+                        "message": (
+                            "Cannot mark as delivered. "
+                            "Shipment must be in transit first."
                         )
                     },
                     status_code=status.HTTP_400_BAD_REQUEST,
