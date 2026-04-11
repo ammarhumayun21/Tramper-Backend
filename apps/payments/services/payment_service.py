@@ -56,7 +56,17 @@ class PaymentService:
                 "Shipment must be in 'accepted' status."
             )
 
-        # Check if a payment already exists for this shipment
+        # Check if a completed payment already exists (prevent duplicate payment cycles)
+        if Payment.objects.filter(
+            shipment=shipment,
+            status=Payment.Status.COMPLETED,
+        ).exists():
+            raise ValueError(
+                f"A completed payment already exists for shipment {shipment.id}. "
+                "Cannot create a duplicate payment."
+            )
+
+        # Check if a pending payment already exists for this shipment
         existing_payment = Payment.objects.filter(
             shipment=shipment,
             status=Payment.Status.PENDING,

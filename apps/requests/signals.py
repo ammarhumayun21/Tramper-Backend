@@ -26,7 +26,7 @@ def update_shipment_on_accept(sender, instance, **kwargs):
     shipment = instance.shipment
 
     # Skip if shipment already has a traveler assigned (already processed)
-    if shipment.traveler and shipment.status == "accepted":
+    if shipment.traveler:
         return
 
     # Determine traveler based on who sent the request
