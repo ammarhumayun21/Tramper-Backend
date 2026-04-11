@@ -71,6 +71,7 @@ class RequestSerializer(serializers.ModelSerializer):
     counter_offers = CounterOfferSerializer(many=True, read_only=True)
     current_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     qr_code_url = serializers.URLField(read_only=True, allow_null=True)
+    qr_token = serializers.CharField(read_only=True, allow_null=True)
     
     # Include related objects for convenience
     shipment = ShipmentListSerializer(read_only=True)
@@ -93,6 +94,7 @@ class RequestSerializer(serializers.ModelSerializer):
             "status",
             "message",
             "qr_code_url",
+            "qr_token",
             "counter_offers",
             "created_at",
             "updated_at",
@@ -107,6 +109,7 @@ class RequestSerializer(serializers.ModelSerializer):
             "trip_id",
             "current_price",
             "qr_code_url",
+            "qr_token",
             "created_at",
             "updated_at",
         ]
@@ -114,12 +117,14 @@ class RequestSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
-        # Only show QR code URL to the shipment traveler
+        # Only show QR code URL and token to the shipment traveler
         if request and instance.shipment and instance.shipment.traveler:
             if request.user != instance.shipment.traveler:
                 data.pop("qr_code_url", None)
+                data.pop("qr_token", None)
         else:
             data.pop("qr_code_url", None)
+            data.pop("qr_token", None)
         return data
 
 
@@ -134,6 +139,7 @@ class RequestListSerializer(serializers.ModelSerializer):
     trip_id = serializers.UUIDField(source="trip.id", read_only=True, allow_null=True)
     current_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     qr_code_url = serializers.URLField(read_only=True, allow_null=True)
+    qr_token = serializers.CharField(read_only=True, allow_null=True)
     counter_offers_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -150,6 +156,7 @@ class RequestListSerializer(serializers.ModelSerializer):
             "current_price",
             "status",
             "qr_code_url",
+            "qr_token",
             "counter_offers_count",
             "created_at",
             "updated_at",
@@ -158,12 +165,14 @@ class RequestListSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
-        # Only show QR code URL to the shipment traveler
+        # Only show QR code URL and token to the shipment traveler
         if request and instance.shipment and instance.shipment.traveler:
             if request.user != instance.shipment.traveler:
                 data.pop("qr_code_url", None)
+                data.pop("qr_token", None)
         else:
             data.pop("qr_code_url", None)
+            data.pop("qr_token", None)
         return data
 
     @extend_schema_field(OpenApiTypes.INT)

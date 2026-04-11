@@ -98,7 +98,7 @@ class RequestListCreateView(APIView):
         notification_service.notify_request_created(req)
         
         return success_response(
-            RequestSerializer(req).data,
+            RequestSerializer(req, context={"request": request}).data,
             status_code=status.HTTP_201_CREATED,
         )
 
@@ -141,7 +141,7 @@ class RequestDetailView(APIView):
                 {"message": "Request not found"},
                 status_code=status.HTTP_404_NOT_FOUND,
             )
-        return success_response(RequestSerializer(req).data)
+        return success_response(RequestSerializer(req, context={"request": request}).data)
 
     @extend_schema(
         tags=["Requests"],
@@ -178,7 +178,7 @@ class RequestDetailView(APIView):
         
         # If accepted, shipment traveler and reward are updated via post_save signal
         
-        return success_response(RequestSerializer(req).data)
+        return success_response(RequestSerializer(req, context={"request": request}).data)
 
     @extend_schema(
         tags=["Requests"],
@@ -284,7 +284,7 @@ class CounterOfferCreateView(APIView):
         req.save(update_fields=["status", "updated_at"])
         
         return success_response(
-            RequestSerializer(req).data,
+            RequestSerializer(req, context={"request": request}).data,
             status_code=status.HTTP_201_CREATED,
         )
 
