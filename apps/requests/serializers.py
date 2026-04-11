@@ -114,20 +114,6 @@ class RequestSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        request = self.context.get("request")
-        # Only show QR code URL and token to the shipment traveler
-        if request and instance.shipment and instance.shipment.traveler:
-            if request.user != instance.shipment.traveler:
-                data.pop("qr_code_url", None)
-                data.pop("qr_token", None)
-        else:
-            data.pop("qr_code_url", None)
-            data.pop("qr_token", None)
-        return data
-
-
 class RequestListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing requests."""
 
@@ -161,19 +147,6 @@ class RequestListSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        request = self.context.get("request")
-        # Only show QR code URL and token to the shipment traveler
-        if request and instance.shipment and instance.shipment.traveler:
-            if request.user != instance.shipment.traveler:
-                data.pop("qr_code_url", None)
-                data.pop("qr_token", None)
-        else:
-            data.pop("qr_code_url", None)
-            data.pop("qr_token", None)
-        return data
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_counter_offers_count(self, obj) -> int:
