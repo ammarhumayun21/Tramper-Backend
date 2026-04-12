@@ -197,7 +197,7 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=120),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -287,6 +287,12 @@ SERVER_EMAIL = config("SERVER_EMAIL", default="server@tramper.local")
 
 # Frontend URL for password reset links
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
+
+# QR Code confirm delivery base URL
+QR_CONFIRM_BASE_URL = config(
+    "QR_CONFIRM_BASE_URL",
+    default="https://tramper-dbaebde837de.herokuapp.com/api/v1/payments",
+)
 
 # ============================================================================
 # CORS SETTINGS

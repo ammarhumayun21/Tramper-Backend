@@ -1407,6 +1407,87 @@ class AdminPaymentsListView(APIView):
         })
 
 
+class AdminWalletTransactionsListView(APIView):
+    """List all wallet transactions for admin panel."""
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        from apps.payments.models import WalletTransaction
+        from django.db.models import Sum
+
+        search = request.query_params.get("search", "").strip()
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 10))
+
+        qs = WalletTransaction.objects.select_related(
+            "wallet__user", "reference", "reference__shipment"
+        ).order_by("-created_at")
+
+        if search:
+            qs = qs.filter(
+                Q(wallet__user__full_name__icontains=search)
+                | Q(wallet__user__email__icontains=search)
+                | Q(description__icontains=search)
+                | Q(type__icontains=search)
+            )
+
+        total = qs.count()
+        start = (page - 1) * page_size
+        transactions = qs[start : start + page_size]
+
+        result = []
+        for t in transactions:
+            user = t.wallet.user
+            ref_payment = t.reference
+            shipment_name = None
+            if ref_payment and ref_payment.shipment:
+                shipment_name = ref_payment.shipment.name
+
+            result.append({
+                "id": str(t.id),
+                "user_id": str(user.id),
+                "user_name": user.full_name or user.username,
+                "user_avatar": user.profile_image_url if hasattr(user, "profile_image_url") else None,
+                "type": t.type,
+                "amount": float(t.amount),
+                "description": t.description,
+                "date": t.created_at.strftime("%Y-%m-%d %H:%M"),
+                "reference_payment_id": str(ref_payment.id) if ref_payment else None,
+                "shipment_name": shipment_name,
+            })
+
+        # Summary metrics
+        all_qs = WalletTransaction.objects.all()
+        if search:
+            all_qs = all_qs.filter(
+                Q(wallet__user__full_name__icontains=search)
+                | Q(wallet__user__email__icontains=search)
+                | Q(description__icontains=search)
+                | Q(type__icontains=search)
+            )
+
+        total_credits = float(
+            all_qs.filter(type="credit").aggregate(total=Sum("amount"))["total"] or 0
+        )
+        total_debits = float(
+            all_qs.filter(type="debit").aggregate(total=Sum("amount"))["total"] or 0
+        )
+
+        return success_response({
+            "results": result,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size,
+            "summary": {
+                "total_credits": total_credits,
+                "total_debits": total_debits,
+                "net_balance": total_credits - total_debits,
+                "transaction_count": total,
+            },
+        })
+
+
 # ============================================================================
 # COMPLAINTS VIEWS
 # ============================================================================

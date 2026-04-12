@@ -332,3 +332,18 @@ class AdminPaymentSerializer(serializers.Serializer):
     date = serializers.CharField()
     shipment_id = serializers.UUIDField(allow_null=True)
     shipment_name = serializers.CharField(allow_null=True, allow_blank=True)
+
+
+class AdminWalletTransactionSerializer(serializers.Serializer):
+    """Wallet transactions list page for admin."""
+
+    id = serializers.UUIDField()
+    user_id = serializers.UUIDField()
+    user_name = serializers.CharField()
+    user_avatar = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    type = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    description = serializers.CharField()
+    date = serializers.CharField()
+    reference_payment_id = serializers.UUIDField(allow_null=True)
+    shipment_name = serializers.CharField(allow_null=True, allow_blank=True)

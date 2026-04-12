@@ -9,6 +9,7 @@ import logging
 
 import qrcode
 from qrcode.image.pil import PilImage
+from django.conf import settings
 
 from core.storage import s3_storage
 
@@ -31,8 +32,9 @@ def generate_delivery_qr_code(request_obj):
     """
     token = secrets.token_urlsafe(32)
 
+    base_url = settings.QR_CONFIRM_BASE_URL.rstrip("/")
     confirm_url = (
-        f"https://tramper-dbaebde837de.herokuapp.com/api/v1/payments"
+        f"{base_url}"
         f"/{request_obj.shipment_id}/confirm-delivery/"
         f"?token={token}"
     )

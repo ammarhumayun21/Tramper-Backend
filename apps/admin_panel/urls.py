@@ -28,6 +28,7 @@ from .views import (
     AdminTripsListView,
     AdminShipmentsListView,
     AdminPaymentsListView,
+    AdminWalletTransactionsListView,
     AdminTripUpdateStatusView,
     AdminComplaintsListView,
     AdminComplaintUpdateStatusView,
@@ -62,6 +63,7 @@ urlpatterns = [
     path("trips/<uuid:trip_id>/status/", AdminTripUpdateStatusView.as_view(), name="admin_trips_status"),
     path("shipments/", AdminShipmentsListView.as_view(), name="admin_shipments_list"),
     path("payments/", AdminPaymentsListView.as_view(), name="admin_payments_list"),
+    path("wallet-transactions/", AdminWalletTransactionsListView.as_view(), name="admin_wallet_transactions_list"),
     # Complaints
     path("complaints/", AdminComplaintsListView.as_view(), name="admin_complaints_list"),
     path("complaints/<uuid:complaint_id>/status/", AdminComplaintUpdateStatusView.as_view(), name="admin_complaint_update_status"),
