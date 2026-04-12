@@ -66,6 +66,7 @@ def log_trip_activity(sender, instance, created, **kwargs):
             entity_type="trip",
             entity_id=trip.pk,
             description=f"{traveler_name} created a new trip: {from_loc} → {to_loc}",
+            description_ar=f"{traveler_name} أنشأ رحلة جديدة: {from_loc} → {to_loc}",
             metadata={"status": trip.status},
         )
     else:
@@ -77,6 +78,7 @@ def log_trip_activity(sender, instance, created, **kwargs):
                 entity_type="trip",
                 entity_id=trip.pk,
                 description=f"{traveler_name}'s trip {from_loc} → {to_loc} status changed: {old_status} → {trip.status}",
+                description_ar=f"تغيرت حالة رحلة {traveler_name} {from_loc} → {to_loc}: {old_status} → {trip.status}",
                 metadata={"old_status": old_status, "new_status": trip.status},
             )
 
@@ -95,6 +97,7 @@ def log_trip_delete(sender, instance, **kwargs):
         entity_type="trip",
         entity_id=trip.pk,
         description=f"{traveler_name}'s trip {from_loc} → {to_loc} was deleted",
+        description_ar=f"تم حذف رحلة {traveler_name} {from_loc} → {to_loc}",
     )
 
 
@@ -117,6 +120,7 @@ def log_shipment_activity(sender, instance, created, **kwargs):
             entity_type="shipment",
             entity_id=shipment.pk,
             description=f"{sender_name} created a new shipment: {from_loc} → {to_loc}",
+            description_ar=f"{sender_name} أنشأ شحنة جديدة: {from_loc} → {to_loc}",
             metadata={"status": shipment.status, "reward": str(shipment.reward)},
         )
     else:
@@ -129,9 +133,20 @@ def log_shipment_activity(sender, instance, created, **kwargs):
                 "received": f"{shipment.name} shipment was received at {to_loc}",
                 "cancelled": f"{shipment.name} shipment was cancelled",
             }
+            status_messages_ar = {
+                "accepted": f"تم قبول شحنة {shipment.name}",
+                "in_transit": f"شحنة {shipment.name} قيد النقل الآن",
+                "delivered": f"تم تسليم شحنة {shipment.name} إلى {to_loc}",
+                "received": f"تم استلام شحنة {shipment.name} في {to_loc}",
+                "cancelled": f"تم إلغاء شحنة {shipment.name}",
+            }
             desc = status_messages.get(
                 shipment.status,
                 f"{shipment.name} status changed: {old_status} → {shipment.status}",
+            )
+            desc_ar = status_messages_ar.get(
+                shipment.status,
+                f"تغيرت حالة {shipment.name}: {old_status} → {shipment.status}",
             )
             ActivityLog.objects.create(
                 actor_id=shipment.sender_id,
@@ -139,6 +154,7 @@ def log_shipment_activity(sender, instance, created, **kwargs):
                 entity_type="shipment",
                 entity_id=shipment.pk,
                 description=desc,
+                description_ar=desc_ar,
                 metadata={"old_status": old_status, "new_status": shipment.status},
             )
 
@@ -152,6 +168,7 @@ def log_shipment_delete(sender, instance, **kwargs):
         entity_type="shipment",
         entity_id=instance.pk,
         description=f"{instance.name} shipment was deleted",
+        description_ar=f"تم حذف شحنة {instance.name}",
     )
 
 
@@ -173,6 +190,7 @@ def log_request_activity(sender, instance, created, **kwargs):
             entity_type="request",
             entity_id=req.pk,
             description=f"{sender_name} sent a request to {receiver_name}",
+            description_ar=f"{sender_name} أرسل طلبًا إلى {receiver_name}",
             metadata={
                 "status": req.status,
                 "offered_price": str(req.offered_price),
@@ -187,6 +205,7 @@ def log_request_activity(sender, instance, created, **kwargs):
                 entity_type="request",
                 entity_id=req.pk,
                 description=f"Request from {sender_name} to {receiver_name} status changed: {old_status} → {req.status}",
+                description_ar=f"تغيرت حالة الطلب من {sender_name} إلى {receiver_name}: {old_status} → {req.status}",
                 metadata={"old_status": old_status, "new_status": req.status},
             )
 
@@ -200,6 +219,7 @@ def log_request_delete(sender, instance, **kwargs):
         entity_type="request",
         entity_id=instance.pk,
         description=f"Request from {instance.sender} to {instance.receiver} was deleted",
+        description_ar=f"تم حذف الطلب من {instance.sender} إلى {instance.receiver}",
     )
 
 
@@ -220,18 +240,21 @@ def log_user_activity(sender, instance, created, **kwargs):
             entity_type="user",
             entity_id=user.pk,
             description=f"{display_name} registered as a new user",
+            description_ar=f"{display_name} سجّل كمستخدم جديد",
             metadata={"email": user.email},
         )
     else:
         old_is_active = getattr(instance, "_old_is_active", None)
         if old_is_active is not None and old_is_active != user.is_active:
             action_word = "activated" if user.is_active else "deactivated"
+            action_word_ar = "تم تفعيل" if user.is_active else "تم تعطيل"
             ActivityLog.objects.create(
                 actor=None,
                 action="status_changed",
                 entity_type="user",
                 entity_id=user.pk,
                 description=f"{display_name}'s account was {action_word}",
+                description_ar=f"{action_word_ar} حساب {display_name}",
                 metadata={
                     "old_is_active": old_is_active,
                     "new_is_active": user.is_active,
@@ -249,6 +272,7 @@ def log_user_delete(sender, instance, **kwargs):
         entity_type="user",
         entity_id=instance.pk,
         description=f"{display_name}'s account was deleted",
+        description_ar=f"تم حذف حساب {display_name}",
     )
 
 
@@ -269,6 +293,7 @@ def log_verification_activity(sender, instance, created, **kwargs):
             entity_type="verification",
             entity_id=vr.pk,
             description=f"{user_email} submitted a verification request",
+            description_ar=f"{user_email} قدّم طلب تحقق",
         )
     else:
         old_status = getattr(instance, "_old_status", None)
@@ -279,6 +304,7 @@ def log_verification_activity(sender, instance, created, **kwargs):
                 entity_type="verification",
                 entity_id=vr.pk,
                 description=f"Verification for {user_email}: {old_status} → {vr.status}",
+                description_ar=f"التحقق لـ {user_email}: {old_status} → {vr.status}",
                 metadata={"old_status": old_status, "new_status": vr.status},
             )
 
@@ -292,6 +318,7 @@ def log_verification_delete(sender, instance, **kwargs):
         entity_type="verification",
         entity_id=instance.pk,
         description=f"Verification request for {instance.user} was deleted",
+        description_ar=f"تم حذف طلب التحقق لـ {instance.user}",
     )
 
 
@@ -313,6 +340,7 @@ def log_chatroom_activity(sender, instance, created, **kwargs):
             entity_type="chatroom",
             entity_id=chatroom.pk,
             description=f"Chatroom created between {sender_name} and {receiver_name}",
+            description_ar=f"تم إنشاء غرفة محادثة بين {sender_name} و {receiver_name}",
             metadata={"is_active": chatroom.is_active},
         )
     else:
@@ -324,6 +352,8 @@ def log_chatroom_activity(sender, instance, created, **kwargs):
                     action="status_changed",
                     entity_type="chatroom",
                     entity_id=chatroom.pk,
+                    description=f"Chatroom between {sender_name} and {receiver_name} was disabled",
+                    description_ar=f"تم تعطيل غرفة المحادثة بين {sender_name} و {receiver_name}",
                     metadata={"old_is_active": old_is_active, "new_is_active": chatroom.is_active},
                 )
 
@@ -345,6 +375,7 @@ def log_payment_activity(sender, instance, created, **kwargs):
             entity_type="payment",
             entity_id=payment.pk,
             description=f"{payer_name} initiated a payment of {payment.currency} {payment.amount}",
+            description_ar=f"{payer_name} بدأ دفعة بقيمة {payment.currency} {payment.amount}",
             metadata={"status": payment.status, "amount": str(payment.amount)},
         )
     else:
@@ -355,9 +386,18 @@ def log_payment_activity(sender, instance, created, **kwargs):
                 "failed": f"Payment by {payer_name} for {payment.currency} {payment.amount} failed",
                 "cancelled": f"Payment by {payer_name} for {payment.currency} {payment.amount} was cancelled",
             }
+            status_messages_ar = {
+                "completed": f"تم إكمال الدفعة من {payer_name} بقيمة {payment.currency} {payment.amount}",
+                "failed": f"فشلت الدفعة من {payer_name} بقيمة {payment.currency} {payment.amount}",
+                "cancelled": f"تم إلغاء الدفعة من {payer_name} بقيمة {payment.currency} {payment.amount}",
+            }
             desc = status_messages.get(
                 payment.status,
                 f"Payment by {payer_name} status changed: {old_status} → {payment.status}",
+            )
+            desc_ar = status_messages_ar.get(
+                payment.status,
+                f"تغيرت حالة الدفعة من {payer_name}: {old_status} → {payment.status}",
             )
             ActivityLog.objects.create(
                 actor_id=payment.user_id,
@@ -365,6 +405,7 @@ def log_payment_activity(sender, instance, created, **kwargs):
                 entity_type="payment",
                 entity_id=payment.pk,
                 description=desc,
+                description_ar=desc_ar,
                 metadata={"old_status": old_status, "new_status": payment.status},
             )
 
@@ -379,4 +420,5 @@ def log_payment_delete(sender, instance, **kwargs):
         entity_type="payment",
         entity_id=instance.pk,
         description=f"Payment by {payer_name} for {instance.currency} {instance.amount} was deleted",
+        description_ar=f"تم حذف الدفعة من {payer_name} بقيمة {instance.currency} {instance.amount}",
     )

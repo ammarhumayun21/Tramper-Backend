@@ -622,6 +622,17 @@ class ShipmentStatusView(APIView):
         "payment_pending": "Awaiting Payment",
     }
 
+    STATUS_LABELS_AR = {
+        "pending": "قيد الانتظار",
+        "accepted": "مقبول",
+        "in_transit": "قيد النقل",
+        "delivered": "تم التسليم",
+        "received": "تم الاستلام",
+        "cancelled": "ملغى",
+        "payment_completed": "مدفوع",
+        "payment_pending": "بانتظار الدفع",
+    }
+
     @extend_schema(
         tags=["Admin Dashboard"],
         summary="Shipment status",
@@ -629,6 +640,9 @@ class ShipmentStatusView(APIView):
         responses={200: OpenApiResponse(response=ShipmentStatusSerializer(many=True))},
     )
     def get(self, request):
+        lang = request.headers.get("Accept-Language", "en")[:2]
+        labels = self.STATUS_LABELS_AR if lang == "ar" else self.STATUS_LABELS
+
         counts = (
             Shipment.objects.values("status")
             .annotate(value=Count("id"))
@@ -639,7 +653,7 @@ class ShipmentStatusView(APIView):
         for item in counts:
             s = item["status"]
             result.append({
-                "name": self.STATUS_LABELS.get(s, s.title()),
+                "name": labels.get(s, s.title()),
                 "value": item["value"],
                 "fill": self.STATUS_COLORS.get(s, "hsl(220, 13%, 60%)"),
             })
@@ -658,6 +672,7 @@ class RecentActivityView(APIView):
         responses={200: OpenApiResponse(response=RecentActivitySerializer(many=True))},
     )
     def get(self, request):
+        lang = request.headers.get("Accept-Language", "en")[:2]
         now = timezone.now()
         three_days_ago = now - timedelta(days=3)
         logs = ActivityLog.objects.select_related("actor").filter(
@@ -668,22 +683,40 @@ class RecentActivityView(APIView):
         for log in logs:
             # Calculate relative time
             delta = now - log.created_at
-            if delta.total_seconds() < 60:
-                time_str = "just now"
-            elif delta.total_seconds() < 3600:
-                minutes = int(delta.total_seconds() / 60)
-                time_str = f"{minutes} min ago"
-            elif delta.total_seconds() < 86400:
-                hours = int(delta.total_seconds() / 3600)
-                time_str = f"{hours} hr{'s' if hours > 1 else ''} ago"
+            if lang == "ar":
+                if delta.total_seconds() < 60:
+                    time_str = "الآن"
+                elif delta.total_seconds() < 3600:
+                    minutes = int(delta.total_seconds() / 60)
+                    time_str = f"منذ {minutes} دقيقة"
+                elif delta.total_seconds() < 86400:
+                    hours = int(delta.total_seconds() / 3600)
+                    time_str = f"منذ {hours} ساعة"
+                else:
+                    days = delta.days
+                    time_str = f"منذ {days} يوم"
             else:
-                days = delta.days
-                time_str = f"{days} day{'s' if days > 1 else ''} ago"
+                if delta.total_seconds() < 60:
+                    time_str = "just now"
+                elif delta.total_seconds() < 3600:
+                    minutes = int(delta.total_seconds() / 60)
+                    time_str = f"{minutes} min ago"
+                elif delta.total_seconds() < 86400:
+                    hours = int(delta.total_seconds() / 3600)
+                    time_str = f"{hours} hr{'s' if hours > 1 else ''} ago"
+                else:
+                    days = delta.days
+                    time_str = f"{days} day{'s' if days > 1 else ''} ago"
+
+            # Use Arabic description if requested and available
+            message = log.description
+            if lang == "ar" and log.description_ar:
+                message = log.description_ar
 
             result.append({
                 "id": str(log.id),
                 "type": log.entity_type,
-                "message": log.description,
+                "message": message,
                 "time": time_str,
             })
 

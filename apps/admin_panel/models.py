@@ -70,6 +70,13 @@ class ActivityLog(models.Model):
         help_text=_("Human-readable description of the activity."),
     )
 
+    description_ar = models.TextField(
+        verbose_name=_("description (Arabic)"),
+        help_text=_("Arabic translation of the activity description."),
+        blank=True,
+        default="",
+    )
+
     metadata = models.JSONField(
         default=dict,
         blank=True,
