@@ -607,6 +607,8 @@ class ShipmentStatusView(APIView):
         "delivered": "hsl(142, 71%, 45%)",
         "received": "hsl(200, 80%, 50%)",
         "cancelled": "hsl(0, 84%, 60%)",
+        "payment_completed": "hsl(262, 83%, 58%)",
+        "payment_pending": "hsl(280, 60%, 50%)",
     }
 
     STATUS_LABELS = {
@@ -616,6 +618,8 @@ class ShipmentStatusView(APIView):
         "delivered": "Delivered",
         "received": "Received",
         "cancelled": "Cancelled",
+        "payment_completed": "Paid",
+        "payment_pending": "Awaiting Payment",
     }
 
     @extend_schema(

@@ -141,8 +141,10 @@ class ShipmentListCreateView(ListAPIView):
     ]
 
     def get_queryset(self):
-        """Get all shipments excluding the current user's shipments."""
+        """Get all shipments excluding the current user's shipments and past shipments."""
         from django.db.models import Q
+        from django.utils import timezone
+
         queryset = Shipment.objects.select_related("sender", "traveler").prefetch_related("items").all()
         
         # Exclude shipments where user is sender or traveler
@@ -150,6 +152,11 @@ class ShipmentListCreateView(ListAPIView):
             queryset = queryset.exclude(
                 Q(sender=self.request.user) | Q(traveler=self.request.user)
             )
+        
+        # Only show shipments with travel_date today or in the future
+        queryset = queryset.filter(
+            Q(travel_date__isnull=True) | Q(travel_date__date__gte=timezone.now().date())
+        )
         
         return queryset.order_by("-created_at")
 

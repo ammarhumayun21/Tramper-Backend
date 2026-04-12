@@ -55,12 +55,17 @@ class TripListCreateView(ListAPIView):
     ]
 
     def get_queryset(self):
-        """Get all trips excluding the current user's trips."""
+        """Get all trips excluding the current user's trips and past trips."""
+        from django.utils import timezone
+
         queryset = Trip.objects.select_related("capacity", "traveler", "category").all()
         
         # Exclude trips where user is the traveler
         if self.request.user.is_authenticated:
             queryset = queryset.exclude(traveler=self.request.user)
+        
+        # Only show trips with departure_date today or in the future
+        queryset = queryset.filter(departure_date__gte=timezone.now().date())
         
         return queryset.filter(is_approved=True).order_by("-created_at")
 
