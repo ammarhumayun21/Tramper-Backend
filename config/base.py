@@ -52,6 +52,7 @@ LOCAL_APPS = [
     "apps.complaints.apps.ComplaintsConfig",
     "apps.chatrooms.apps.ChatroomsConfig",
     "apps.payments.apps.PaymentsConfig",
+    "apps.translations.apps.TranslationsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

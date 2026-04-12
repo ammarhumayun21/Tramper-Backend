@@ -43,6 +43,8 @@ urlpatterns = [
     path("api/v1/chatrooms/", include("apps.chatrooms.urls")),
     # API v1 - Payments endpoints
     path("api/v1/payments/", include("apps.payments.urls")),
+    # API v1 - Translations endpoints
+    path("api/v1/translations/", include("apps.translations.urls")),
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
