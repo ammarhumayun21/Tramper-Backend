@@ -351,7 +351,7 @@ class ConfirmDeliveryView(APIView):
             )
 
         # Validate QR token
-        token = request.data.get("token")
+        token = request.data.get("token") or request.query_params.get("token")
         if not token:
             return error_response(
                 "QR code token is required to confirm delivery.",
