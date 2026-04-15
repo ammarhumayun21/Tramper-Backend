@@ -93,3 +93,75 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.user}"
+
+
+class DeviceToken(models.Model):
+    """
+    Stores FCM device tokens per user.
+
+    One user can have multiple devices (phone, tablet, web browser).
+    A single token is globally unique — if a device switches users
+    (re-login), the existing record is reassigned via upsert.
+    """
+
+    DEVICE_TYPE_CHOICES = [
+        ("ios", _("iOS")),
+        ("android", _("Android")),
+        ("web", _("Web")),
+    ]
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name=_("ID"),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="device_tokens",
+        verbose_name=_("user"),
+        help_text=_("User who owns this device token"),
+    )
+
+    token = models.CharField(
+        max_length=500,
+        unique=True,
+        verbose_name=_("FCM token"),
+        help_text=_("Firebase Cloud Messaging registration token"),
+    )
+
+    device_type = models.CharField(
+        max_length=10,
+        choices=DEVICE_TYPE_CHOICES,
+        verbose_name=_("device type"),
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("is active"),
+        help_text=_("Inactive tokens are skipped during push. Set to False on send failure."),
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("created at"),
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_("updated at"),
+    )
+
+    class Meta:
+        verbose_name = _("device token")
+        verbose_name_plural = _("device tokens")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "is_active"], name="idx_devicetoken_user_active"),
+        ]
+
+    def __str__(self):
+        return f"{self.device_type} token for {self.user} ({'active' if self.is_active else 'inactive'})"
+

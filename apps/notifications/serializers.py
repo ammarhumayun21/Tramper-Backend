@@ -3,7 +3,7 @@ Notification serializers for Tramper.
 """
 
 from rest_framework import serializers
-from .models import Notification
+from .models import Notification, DeviceToken
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -33,3 +33,41 @@ class NotificationMarkReadSerializer(serializers.Serializer):
         required=False,
         help_text="List of notification IDs to mark as read. If empty, marks all as read.",
     )
+
+
+class DeviceTokenRegisterSerializer(serializers.Serializer):
+    """Serializer for registering an FCM device token."""
+
+    token = serializers.CharField(
+        max_length=500,
+        help_text="FCM registration token from the client device.",
+    )
+    device_type = serializers.ChoiceField(
+        choices=["ios", "android", "web"],
+        help_text="Platform type of the device.",
+    )
+
+
+class DeviceTokenDeleteSerializer(serializers.Serializer):
+    """Serializer for deleting an FCM device token (logout)."""
+
+    token = serializers.CharField(
+        max_length=500,
+        help_text="FCM registration token to remove.",
+    )
+
+
+class DeviceTokenSerializer(serializers.ModelSerializer):
+    """Read-only serializer for DeviceToken model."""
+
+    class Meta:
+        model = DeviceToken
+        fields = [
+            "id",
+            "token",
+            "device_type",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields

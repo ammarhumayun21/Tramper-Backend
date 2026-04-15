@@ -413,3 +413,26 @@ ZIINA_FALIURE_URL = config("ZIINA_FALIURE_URL", default="")
 # ============================================================================
 COMMISSION_FROM_PAYER = config("COMMISSION_FROM_PAYER", default=10, cast=int)
 COMMISSION_FROM_RECEIVER = config("COMMISSION_FROM_RECEIVER", default=5, cast=int)
+
+# ============================================================================
+# CELERY CONFIGURATION
+# ============================================================================
+CELERY_BROKER_URL = config("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = config("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30  # 30 seconds hard limit per task
+CELERY_TASK_SOFT_TIME_LIMIT = 25  # 25 seconds soft limit
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# ============================================================================
+# FIREBASE CLOUD MESSAGING (FCM) CONFIGURATION
+# ============================================================================
+# Option 1: File path to service account JSON (local development)
+FIREBASE_CREDENTIALS_PATH = config("FIREBASE_CREDENTIALS_PATH", default="")
+# Option 2: Base64-encoded service account JSON (Heroku production)
+FIREBASE_CREDENTIALS_JSON = config("FIREBASE_CREDENTIALS_JSON", default="")
+

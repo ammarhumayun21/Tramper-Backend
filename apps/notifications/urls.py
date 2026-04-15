@@ -8,6 +8,8 @@ from .views import (
     UnreadCountView,
     MarkNotificationsReadView,
     NotificationDetailView,
+    RegisterDeviceTokenView,
+    DeleteDeviceTokenView,
 )
 
 app_name = "notifications"
@@ -24,4 +26,8 @@ urlpatterns = [
     
     # Notification detail
     path("<uuid:pk>/", NotificationDetailView.as_view(), name="notification-detail"),
+
+    # FCM device token management
+    path("register-token/", RegisterDeviceTokenView.as_view(), name="register-token"),
+    path("delete-token/", DeleteDeviceTokenView.as_view(), name="delete-token"),
 ]

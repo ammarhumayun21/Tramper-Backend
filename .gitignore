@@ -62,3 +62,7 @@ Thumbs.db
 # Temporary
 *.tmp
 *.bak
+
+# Firebase service account credentials (NEVER commit these)
+*firebase*.json
+*service-account*.json

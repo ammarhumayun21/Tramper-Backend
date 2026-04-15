@@ -2,6 +2,8 @@
 Notification views for Tramper.
 """
 
+import logging
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
@@ -9,9 +11,17 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
-from .models import Notification
-from .serializers import NotificationSerializer, NotificationMarkReadSerializer
+from .models import Notification, DeviceToken
+from .serializers import (
+    NotificationSerializer,
+    NotificationMarkReadSerializer,
+    DeviceTokenRegisterSerializer,
+    DeviceTokenDeleteSerializer,
+    DeviceTokenSerializer,
+)
 from core.api import success_response
+
+logger = logging.getLogger(__name__)
 
 
 class MyNotificationsView(ListAPIView):
@@ -171,3 +181,111 @@ class NotificationDetailView(APIView):
         
         notification.delete()
         return success_response({"message": "Notification deleted"})
+
+
+class RegisterDeviceTokenView(APIView):
+    """
+    Register an FCM device token for push notifications.
+
+    Should be called on app startup and whenever the FCM token refreshes.
+    If the token already exists under a different user (device re-login),
+    it will be reassigned to the current user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Notifications"],
+        summary="Register device token",
+        description=(
+            "Register an FCM device token for the current user. "
+            "Call this on app login/startup and on token refresh. "
+            "If the token exists under another user, it is reassigned."
+        ),
+        request=DeviceTokenRegisterSerializer,
+        responses={
+            200: OpenApiResponse(response=DeviceTokenSerializer, description="Token registered/updated"),
+            201: OpenApiResponse(response=DeviceTokenSerializer, description="Token created"),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Not authenticated"),
+        },
+    )
+    def post(self, request):
+        serializer = DeviceTokenRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token = serializer.validated_data["token"]
+        device_type = serializer.validated_data["device_type"]
+
+        # Upsert: update if token exists (possibly under different user), create otherwise
+        device_token, created = DeviceToken.objects.update_or_create(
+            token=token,
+            defaults={
+                "user": request.user,
+                "device_type": device_type,
+                "is_active": True,
+            },
+        )
+
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        action = "registered" if created else "updated"
+
+        logger.info(
+            "Device token %s for user %s (%s)",
+            action,
+            request.user.id,
+            device_type,
+        )
+
+        return success_response(
+            {
+                "message": f"Device token {action} successfully",
+                "device_token": DeviceTokenSerializer(device_token).data,
+            },
+            status_code=status_code,
+        )
+
+
+class DeleteDeviceTokenView(APIView):
+    """
+    Delete an FCM device token (e.g. on user logout).
+
+    Removes the token from the database so the user stops receiving
+    push notifications on that device.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Notifications"],
+        summary="Delete device token",
+        description=(
+            "Remove an FCM device token. Call this on user logout "
+            "to stop push notifications on the device."
+        ),
+        request=DeviceTokenDeleteSerializer,
+        responses={
+            200: OpenApiResponse(description="Token deleted"),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Not authenticated"),
+            404: OpenApiResponse(description="Token not found"),
+        },
+    )
+    def delete(self, request):
+        serializer = DeviceTokenDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token = serializer.validated_data["token"]
+
+        deleted_count, _ = DeviceToken.objects.filter(
+            token=token,
+            user=request.user,
+        ).delete()
+
+        if deleted_count == 0:
+            return success_response(
+                {"message": "Device token not found"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        logger.info("Device token deleted for user %s", request.user.id)
+
+        return success_response({"message": "Device token deleted successfully"})
