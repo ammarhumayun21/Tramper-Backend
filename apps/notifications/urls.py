@@ -10,6 +10,7 @@ from .views import (
     NotificationDetailView,
     RegisterDeviceTokenView,
     DeleteDeviceTokenView,
+    SendTestPushView,
 )
 
 app_name = "notifications"
@@ -30,4 +31,7 @@ urlpatterns = [
     # FCM device token management
     path("register-token/", RegisterDeviceTokenView.as_view(), name="register-token"),
     path("delete-token/", DeleteDeviceTokenView.as_view(), name="delete-token"),
+
+    # Test push notification
+    path("test-push/", SendTestPushView.as_view(), name="test-push"),
 ]

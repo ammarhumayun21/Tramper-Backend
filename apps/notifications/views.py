@@ -289,3 +289,58 @@ class DeleteDeviceTokenView(APIView):
         logger.info("Device token deleted for user %s", request.user.id)
 
         return success_response({"message": "Device token deleted successfully"})
+
+
+class SendTestPushView(APIView):
+    """
+    Send a test push notification to the authenticated user's devices.
+
+    Useful for verifying that the Firebase setup works end-to-end.
+    Creates a real notification record AND sends an FCM push.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Notifications"],
+        summary="Send test push notification",
+        description=(
+            "Sends a test push notification to all registered devices "
+            "of the current user. Use this to verify FCM is configured "
+            "and working correctly."
+        ),
+        request=None,
+        responses={
+            200: OpenApiResponse(description="Test notification sent"),
+            401: OpenApiResponse(description="Not authenticated"),
+        },
+    )
+    def post(self, request):
+        from .services import notification_service
+
+        user = request.user
+        token_count = DeviceToken.objects.filter(
+            user=user, is_active=True
+        ).count()
+
+        # Create notification + trigger FCM push
+        notification = notification_service.create(
+            user=user,
+            title="🔔 Test Notification",
+            message="If you see this on your device, FCM is working!",
+            category="platform",
+        )
+
+        return success_response({
+            "message": "Test notification sent",
+            "notification_id": str(notification.id),
+            "active_device_tokens": token_count,
+            "note": (
+                "Push was queued via Celery. "
+                f"You have {token_count} active device token(s). "
+                "If you don't receive it, check: "
+                "1) Firebase credentials configured, "
+                "2) Celery worker running, "
+                "3) Device token is valid."
+            ),
+        })
+
