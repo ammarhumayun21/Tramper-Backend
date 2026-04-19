@@ -139,8 +139,8 @@ if REDIS_URL:
     # Celery broker — override to use SSL for Heroku Redis
     CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
-    CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": None}
-    CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": None}
+    CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": ssl.CERT_NONE}
+    CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": ssl.CERT_NONE}
 
 else:
     # Fallback to database cache if Redis not configured
