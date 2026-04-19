@@ -261,6 +261,10 @@ SPECTACULAR_SETTINGS = {
     "TAGS": [
         {"name": "Authentication", "description": "User authentication and registration"},
         {"name": "Users", "description": "User profile management"},
+        {"name": "Countries", "description": "Country reference data (ISO 3166)"},
+        {"name": "Cities", "description": "City reference data"},
+        {"name": "Locations", "description": "Airport locations"},
+        {"name": "Airlines", "description": "Airline reference data"},
         {"name": "Trips", "description": "Trip management and listings"},
         {"name": "Shipments", "description": "Shipment requests and management"},
         {"name": "Shipment Items", "description": "Items within shipments"},

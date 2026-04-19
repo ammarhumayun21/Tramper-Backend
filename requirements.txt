@@ -1,4 +1,5 @@
 amqp==5.3.1
+airportsdata==20250909
 anyio==4.12.1
 asgiref==3.11.0
 async-timeout==5.0.1
@@ -78,6 +79,7 @@ pytest-django==4.11.1
 python-dateutil==2.9.0.post0
 python-decouple==3.8
 python-slugify==8.0.4
+pycountry==24.6.1
 pytokens==0.4.1
 PyYAML==6.0.3
 qrcode[pil]==8.0

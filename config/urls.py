@@ -14,7 +14,7 @@ from django.urls import path, include
 from django.conf import settings
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
-from core.urls import airline_urlpatterns
+from core.urls import airline_urlpatterns, country_urlpatterns, city_urlpatterns
 
 urlpatterns = [
     # Django Admin
@@ -35,6 +35,10 @@ urlpatterns = [
     path("api/v1/locations/", include("core.urls")),
     # API v1 - Airlines endpoints
     path("api/v1/airlines/", include(airline_urlpatterns)),
+    # API v1 - Countries endpoints
+    path("api/v1/countries/", include(country_urlpatterns)),
+    # API v1 - Cities endpoints
+    path("api/v1/cities/", include(city_urlpatterns)),
     # API v1 - Complaints endpoints
     path("api/v1/complaints/", include("apps.complaints.urls")),
     # API v1 - Admin Panel endpoints
