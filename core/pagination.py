@@ -23,3 +23,29 @@ class StandardPagination(PageNumberPagination):
                 },
             }
         )
+
+
+class LargeResultsPagination(PageNumberPagination):
+    """Pagination for large reference datasets (locations, airlines, countries, cities).
+    Supports page sizes up to 5000 to allow bulk fetching of reference data.
+    """
+    page_size = 100
+    page_size_query_param = "page_size"
+    max_page_size = 5000
+
+    def get_paginated_response(self, data):
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "results": data,
+                    "pagination": {
+                        "count": self.page.paginator.count,
+                        "page": self.page.number,
+                        "page_size": self.get_page_size(self.request),
+                        "next": self.get_next_link(),
+                        "previous": self.get_previous_link(),
+                    },
+                },
+            }
+        )

@@ -12,6 +12,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParamet
 from drf_spectacular.types import OpenApiTypes
 
 from .models import Location, Airline, Country, City
+from .pagination import LargeResultsPagination
 from .serializers import (
     LocationSerializer,
     LocationCreateSerializer,
@@ -38,6 +39,7 @@ class CountryListView(ListAPIView):
     """
     serializer_class = CountryListSerializer
     permission_classes = [AllowAny]
+    pagination_class = LargeResultsPagination
     queryset = Country.objects.all()
 
     def get_queryset(self):
@@ -149,6 +151,7 @@ class CityListView(ListAPIView):
     """
     serializer_class = CityListSerializer
     permission_classes = [AllowAny]
+    pagination_class = LargeResultsPagination
     queryset = City.objects.select_related("country").all()
 
     def get_queryset(self):
@@ -208,6 +211,7 @@ class LocationListView(ListAPIView):
     """
     serializer_class = LocationSerializer
     permission_classes = [AllowAny]
+    pagination_class = LargeResultsPagination
     queryset = Location.objects.all()
 
     def get_queryset(self):
@@ -342,6 +346,7 @@ class AirlineListView(ListAPIView):
     """
     serializer_class = AirlineSerializer
     permission_classes = [AllowAny]
+    pagination_class = LargeResultsPagination
     queryset = Airline.objects.all()
 
     def get_queryset(self):
