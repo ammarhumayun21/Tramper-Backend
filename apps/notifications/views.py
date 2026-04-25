@@ -261,19 +261,29 @@ class DeleteDeviceTokenView(APIView):
             "Remove an FCM device token. Call this on user logout "
             "to stop push notifications on the device."
         ),
-        request=DeviceTokenDeleteSerializer,
+        parameters=[
+            OpenApiParameter(
+                "token",
+                OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=True,
+                description="The FCM device token to delete.",
+            )
+        ],
         responses={
             200: OpenApiResponse(description="Token deleted"),
-            400: OpenApiResponse(description="Validation error"),
+            400: OpenApiResponse(description="Token query parameter is required"),
             401: OpenApiResponse(description="Not authenticated"),
             404: OpenApiResponse(description="Token not found"),
         },
     )
     def delete(self, request):
-        serializer = DeviceTokenDeleteSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        token = serializer.validated_data["token"]
+        token = request.query_params.get("token")
+        if not token:
+            return success_response(
+                {"message": "token query parameter is required"},
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
 
         deleted_count, _ = DeviceToken.objects.filter(
             token=token,

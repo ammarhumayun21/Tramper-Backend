@@ -42,17 +42,25 @@ def get_firebase_app():
         if creds_json:
             cred_dict = json.loads(base64.b64decode(creds_json))
             cred = credentials.Certificate(cred_dict)
-            _app = firebase_admin.initialize_app(cred)
-            logger.info("Firebase Admin SDK initialized from base64 credentials.")
+            try:
+                _app = firebase_admin.get_app()
+                logger.info("Firebase Admin SDK reused existing app (base64 credentials).")
+            except ValueError:
+                _app = firebase_admin.initialize_app(cred)
+                logger.info("Firebase Admin SDK initialized from base64 credentials.")
 
         # Option 2: File path (local development)
         elif getattr(settings, "FIREBASE_CREDENTIALS_PATH", ""):
             cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-            _app = firebase_admin.initialize_app(cred)
-            logger.info(
-                "Firebase Admin SDK initialized from file: %s",
-                settings.FIREBASE_CREDENTIALS_PATH,
-            )
+            try:
+                _app = firebase_admin.get_app()
+                logger.info("Firebase Admin SDK reused existing app (file: %s).", settings.FIREBASE_CREDENTIALS_PATH)
+            except ValueError:
+                _app = firebase_admin.initialize_app(cred)
+                logger.info(
+                    "Firebase Admin SDK initialized from file: %s",
+                    settings.FIREBASE_CREDENTIALS_PATH,
+                )
 
         else:
             logger.warning(
