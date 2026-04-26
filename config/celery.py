@@ -19,6 +19,9 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Auto-discover tasks.py in all installed apps
 app.autodiscover_tasks()
 
+# Also discover tasks defined in push.py (notifications uses push.py instead of tasks.py)
+app.autodiscover_tasks(related_name="push")
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
